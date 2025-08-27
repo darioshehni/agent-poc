@@ -81,33 +81,15 @@ class QuerySession:
         
         for tool_name, result in self.sources.items():
             if result.success and result.data:
-                # Extract source names based on tool type
-                if tool_name == "get_legislation":
-                    for item in result.data:
-                        if isinstance(item, dict) and "source" in item:
-                            source_names.append(item["source"])
-                        elif isinstance(item, str):
-                            # For backward compatibility, extract from content
-                            if ":" in item:
-                                source_names.append(item.split(":")[0].strip())
-                            else:
-                                source_names.append(item[:100] + "..." if len(item) > 100 else item)
-                
-                elif tool_name == "get_case_law":
-                    for item in result.data:
-                        if isinstance(item, dict) and "source" in item:
-                            source_names.append(item["source"])
-                        elif isinstance(item, str):
-                            # Extract ECLI number or court case reference
-                            if "ECLI:" in item:
-                                # Extract ECLI reference
-                                ecli_start = item.find("ECLI:")
-                                ecli_end = item.find(" ", ecli_start)
-                                if ecli_end == -1:
-                                    ecli_end = ecli_start + 50  # fallback
-                                source_names.append(item[ecli_start:ecli_end])
-                            else:
-                                source_names.append(item[:100] + "..." if len(item) > 100 else item)
+                for item in result.data:
+                    if isinstance(item, dict) and "source" in item:
+                        source_names.append(item["source"])
+                    elif isinstance(item, str):
+                        # Simple extraction - just take first line or reasonable length
+                        first_line = item.split('\n')[0].strip()
+                        if len(first_line) > 80:
+                            first_line = first_line[:80] + "..."
+                        source_names.append(first_line)
         
         return source_names
         
@@ -161,24 +143,4 @@ class SessionManager:
         return len(to_remove)
 
 
-class WorkflowEngine:
-    """Simplified workflow management - just tracks source collection."""
-    
-    def __init__(self):
-        self.required_tools = ["get_legislation", "get_case_law"]
-    
-    def process_tool_result(
-        self, 
-        session: QuerySession, 
-        tool_name: str, 
-        result: ToolResult
-    ) -> WorkflowState:
-        """
-        Process a tool result. Just add to session and mark as active.
-        The LLM handles all workflow logic through conversation context.
-        """
-        # Add result to session
-        session.add_source(tool_name, result)
-        
-        # Return ACTIVE when working with tools
-        return WorkflowState.ACTIVE
+# WorkflowEngine removed - functionality moved directly to agent for simplicity

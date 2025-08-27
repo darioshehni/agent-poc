@@ -55,8 +55,12 @@ SYNTHESIS INSTRUCTIES:
 - Geef gestructureerd antwoord met duidelijke bronvermeldingen
 - Demonstreer information integration capabilities
 
+STRUCTUUR VAN HET ANTWOORD:
+- Leg eerst kort het verband tussen de vraag en de relevante bronnen uit. Als er geen relevantie is, geef dit dan aan.
+- Eindig met een duidelijk maar beknopt antwoord op de vraag.
+
 RESPONSE SYNTHESIS:
-Genereer nu een uitgebreid, gestructureerd antwoord dat LlamaIndex's synthesis kracht toont:"""
+Genereer nu een antwoord:"""
 
 
 # LlamaIndex query transformation template

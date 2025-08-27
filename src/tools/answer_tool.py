@@ -43,12 +43,12 @@ class AnswerTool(BaseTool):
                 "legislation": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "List of relevant legislation sources to use in the answer"
+                    "description": "List of potentially relevant legislation sources to use in the answer"
                 },
                 "case_law": {
                     "type": "array", 
                     "items": {"type": "string"},
-                    "description": "List of relevant case law sources to use in the answer"
+                    "description": "List of potentially relevant case law sources to use in the answer"
                 }
             },
             "required": ["question", "legislation", "case_law"]

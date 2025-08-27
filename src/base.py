@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -82,8 +83,8 @@ class LLMClient(ABC):
         pass
 
 
-class ToolRegistry:
-    """Registry for managing available tools."""
+class ToolManager:
+    """Manages tools: registration, validation, execution, and schema generation."""
     
     def __init__(self):
         self._tools: Dict[str, BaseTool] = {}
@@ -136,6 +137,46 @@ class ToolRegistry:
                 error_message=f"Tool execution failed: {str(e)}"
             )
     
+    def execute_function_call(self, function_name: str, arguments: Dict[str, Any]) -> str:
+        """
+        Execute a function call from OpenAI and return result as JSON string.
+        This is the interface between OpenAI function calling and our tool system.
+        """
+        try:
+            # Parse arguments if they're a JSON string
+            if isinstance(arguments, str):
+                arguments = json.loads(arguments)
+            
+            # Execute the tool
+            result = self.execute_tool(function_name, **arguments)
+            
+            if result.success:
+                # For successful results, return JSON with data and metadata
+                response = {
+                    "success": True,
+                    "data": result.data,
+                    "metadata": result.metadata
+                }
+                return json.dumps(response, ensure_ascii=False)
+            else:
+                # For failed results, return error information
+                response = {
+                    "success": False,
+                    "error": result.error_message,
+                    "data": None
+                }
+                return json.dumps(response, ensure_ascii=False)
+                
+        except json.JSONDecodeError as e:
+            error_msg = f"Invalid JSON arguments for {function_name}: {str(e)}"
+            logger.error(error_msg)
+            return json.dumps({"success": False, "error": error_msg}, ensure_ascii=False)
+            
+        except Exception as e:
+            error_msg = f"Unexpected error executing {function_name}: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return json.dumps({"success": False, "error": error_msg}, ensure_ascii=False)
+    
     def validate_tools(self) -> List[str]:
         """Validate all registered tools. Returns list of validation errors."""
         errors = []
@@ -161,3 +202,7 @@ class ToolRegistry:
                 errors.append(f"Tool {tool_name}: validation error - {str(e)}")
         
         return errors
+
+
+# Keep old class name as alias for backward compatibility
+ToolRegistry = ToolManager

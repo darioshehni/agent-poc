@@ -76,7 +76,7 @@ def test_tools():
     print(f"Available tools: {tools}")
     
     # Test tool validation
-    validation_errors = chatbot.tool_registry.validate_tools()
+    validation_errors = chatbot.tool_manager.validate_tools()
     if validation_errors:
         print(f"Tool validation errors: {validation_errors}")
     else:

@@ -14,10 +14,10 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 
-from base import WorkflowState, ToolRegistry
-from sessions import QuerySession, SessionManager, WorkflowEngine
+from base import WorkflowState, ToolManager
+from sessions import QuerySession, SessionManager
 from commands import CommandProcessor
-from llm import OpenAIClient, LLMClient, ToolExecutor
+from llm import OpenAIClient, LLMClient
 from tools.legislation_tool import LegislationTool
 from tools.case_law_tool import CaseLawTool
 from tools.answer_tool import AnswerTool
@@ -56,9 +56,7 @@ class TaxChatbot:
         # Core components
         self.llm_client = llm_client or OpenAIClient()
         self.session_manager = SessionManager()
-        self.tool_registry = ToolRegistry()
-        self.tool_executor = ToolExecutor(self.tool_registry)
-        self.workflow_engine = WorkflowEngine()
+        self.tool_manager = ToolManager()
         self.command_processor = CommandProcessor()
         
         # Current session
@@ -66,7 +64,6 @@ class TaxChatbot:
         
         # Initialize system
         self._setup_tools()
-        self._setup_workflows()
         
         logger.info(f"TaxChatbot initialized for session: {session_id}")
     
@@ -77,21 +74,17 @@ class TaxChatbot:
         answer_tool = AnswerTool(self.llm_client)
         
         # Register tools
-        self.tool_registry.register(LegislationTool())
-        self.tool_registry.register(CaseLawTool())
-        self.tool_registry.register(answer_tool)
+        self.tool_manager.register(LegislationTool())
+        self.tool_manager.register(CaseLawTool())
+        self.tool_manager.register(answer_tool)
         
         # Validate all tools
-        validation_errors = self.tool_registry.validate_tools()
+        validation_errors = self.tool_manager.validate_tools()
         if validation_errors:
             logger.warning(f"Tool validation issues: {validation_errors}")
         
-        logger.info(f"Registered {len(self.tool_registry.list_tools())} tools")
+        logger.info(f"Registered {len(self.tool_manager.list_tools())} tools")
     
-    def _setup_workflows(self) -> None:
-        """Configure workflow patterns."""
-        # Workflow engine is now simplified and built into sessions.py
-        logger.info("Workflow engine initialized")
     
     def process_message(self, user_input: str) -> str:
         """
@@ -123,7 +116,7 @@ class TaxChatbot:
             # No need for explicit confirmation handling - LLM handles it via context
             
             # Process with AI
-            response = self._process_with_ai(session, user_input)
+            response = self._process_with_ai(session)
             
             # Add response to history
             session.add_message("assistant", response)
@@ -134,11 +127,11 @@ class TaxChatbot:
             logger.error(f"Error processing message: {str(e)}", exc_info=True)
             return f"Er is een onverwachte fout opgetreden: {str(e)}. Probeer het opnieuw."
     
-    def _process_with_ai(self, session: QuerySession, user_input: str) -> str:
+    def _process_with_ai(self, session: QuerySession) -> str:
         """Process message using AI with function calling."""
         
-        # Build dynamic system prompt
-        system_prompt = self._build_system_prompt(session)
+        # Build system prompt
+        system_prompt = self._build_system_prompt()
         
         # Prepare conversation messages
         messages = [
@@ -154,7 +147,7 @@ class TaxChatbot:
             })
         
         # Get available tools
-        tools = self.tool_registry.get_function_schemas()
+        tools = self.tool_manager.get_function_schemas()
         
         try:
             # Make initial AI request
@@ -200,17 +193,15 @@ class TaxChatbot:
                 
                 logger.info(f"Executing tool: {function_name}")
                 
-                # Execute tool through executor
-                result_str = self.tool_executor.execute_function_call(function_name, arguments)
+                # Execute tool through manager
+                result_str = self.tool_manager.execute_function_call(function_name, arguments)
                 result_data = json.loads(result_str)
                 
                 # Update session state if this was a source-gathering tool
                 if function_name in ["get_legislation", "get_case_law"] and result_data["success"]:
-                    tool_result = self.tool_registry.execute_tool(function_name, **arguments)
-                    new_state = self.workflow_engine.process_tool_result(
-                        session, function_name, tool_result
-                    )
-                    session.transition_to(new_state)
+                    tool_result = self.tool_manager.execute_tool(function_name, **arguments)
+                    session.add_source(function_name, tool_result)
+                    session.transition_to(WorkflowState.ACTIVE)
                 
                 # Add tool result to conversation
                 messages.append({
@@ -231,8 +222,8 @@ class TaxChatbot:
         
         # Get final response after all function calls
         try:
-            # Update system prompt with current state
-            messages[0]["content"] = self._build_system_prompt(session)
+            # Update system prompt
+            messages[0]["content"] = self._build_system_prompt()
             
             final_response = self.llm_client.chat_completion(
                 messages=messages,
@@ -246,8 +237,9 @@ class TaxChatbot:
             logger.error(f"Error getting final response: {str(e)}")
             return f"Er is een fout opgetreden bij het genereren van het finale antwoord: {str(e)}"
     
-    def _build_system_prompt(self, session: QuerySession) -> str:
-        """Build system prompt - now simply returns the base prompt."""
+    @staticmethod
+    def _build_system_prompt() -> str:
+        """Build system prompt."""
         return get_prompt_template("agent_system")
     
     
@@ -274,13 +266,13 @@ class TaxChatbot:
         return "Sessie is gereset. U kunt een nieuwe vraag stellen."
     
     def add_tool(self, tool) -> None:
-        """Add a new tool to the registry."""
-        self.tool_registry.register(tool)
+        """Add a new tool to the manager."""
+        self.tool_manager.register(tool)
         logger.info(f"Added tool: {tool.name}")
     
     def list_available_tools(self) -> List[str]:
         """Get list of available tools."""
-        return self.tool_registry.list_tools()
+        return self.tool_manager.list_tools()
     
     def list_available_commands(self) -> List[str]:
         """Get list of available commands."""
