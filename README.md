@@ -1,4 +1,4 @@
-# Dutch Tax Chatbot
+# Tax Chatbot
 
 An intelligent Dutch tax chatbot with clean architecture that leverages OpenAI's API and conversation context for workflow management.
 
