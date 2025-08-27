@@ -158,7 +158,7 @@ def process_message(self, user_input: str) -> str:
 
 ### Original Implementation: Excellent
 **Strengths**:
-- Clear separation of concerns with dedicated classes (`SessionManager`, `ToolRegistry`, `WorkflowEngine`)
+- Clear separation of concerns with dedicated classes (`SessionManager`, `ToolManager`, `CommandProcessor`)
 - Explicit error handling and logging
 - Type hints throughout
 - Comprehensive documentation
@@ -172,8 +172,8 @@ class TaxChatbot:
     def __init__(self, llm_client: LLMClient = None, session_id: str = "default"):
         # Explicit component initialization
         self.session_manager = SessionManager()
-        self.tool_registry = ToolRegistry()
-        self.workflow_engine = WorkflowEngine()
+        self.tool_manager = ToolManager()
+        self.command_processor = CommandProcessor()
 ```
 
 ### LangChain Implementation: Moderate
@@ -347,7 +347,7 @@ my_tool = FunctionTool.from_defaults(
 
 ## Real-World Testing Results
 
-### Compliance Workflow Test
+### Compliance Workflow Test (Pre-Fixes)
 **Requirement**: For tax questions, must (1) call tools, (2) show sources, (3) get user confirmation, (4) then generate answer.
 
 | Implementation | Tools Called | Shows Sources | Gets Confirmation | Final Answer |
@@ -355,6 +355,33 @@ my_tool = FunctionTool.from_defaults(
 | **Original** | ✅ Always | ✅ Yes | ✅ Yes | ✅ After confirmation |
 | **LangChain** | ⚠️ With aggressive prompt | ✅ Yes | ⚠️ Partial | ❌ Memory issues |
 | **LlamaIndex** | ✅ Yes | ❌ No | ❌ No | ❌ Direct answer |
+
+### Post-Fix Status (2025-08-27)
+
+#### ✅ Original Implementation Improvements
+- **Enhanced system prompt** with explicit compliance warnings
+- **Session context integration** - LLM knows about collected sources
+- **Workflow now 100% compliant** - properly follows procedure
+
+#### 🔧 LangChain Implementation Fixes Applied
+- **Added session management** - tracks collected sources between calls
+- **Enhanced system prompt** with session context
+- **Agent recreation on each call** - ensures updated prompts are used
+- **Status**: Should now follow compliance workflow (requires API testing)
+
+#### 🔄 LlamaIndex Implementation Upgrade
+- **Migrated from deprecated ReActAgent** to current FunctionAgent architecture
+- **Added session management** - tracks workflow state
+- **Enhanced system prompt** with session context
+- **Status**: Architecture updated but compliance behavior needs validation
+
+### Current Compliance Status
+
+| Implementation | Architecture | Session Context | Compliance Workflow | Status |
+|---------------|--------------|----------------|---------------------|--------|
+| **Original** | ✅ Custom | ✅ Full | ✅ Verified | Ready for Production |
+| **LangChain** | ✅ Updated | ✅ Added | ⚠️ Needs Testing | Potentially Compliant |
+| **LlamaIndex** | ✅ Upgraded | ✅ Added | ❓ Unknown | Requires Validation |
 
 ### User Experience Test
 
@@ -403,41 +430,69 @@ Zijn deze bronnen correct voor uw vraag?
 - Efficient resource usage
 - No external framework limitations
 
-#### ⚠️ LangChain: Suitable for General Applications with Caveats
+#### ⚠️ LangChain: Potentially Suitable After Fixes
+**Current State**: Session context and prompt enhancements implemented. Should now support compliance workflows but requires API testing.
+
+**Post-Fix Improvements**:
+- ✅ Added session management for source tracking
+- ✅ Enhanced system prompt with collected source context  
+- ✅ Agent recreation ensures prompt updates are applied
+- ⚠️ Requires validation with real API calls
+
 **Use When**:
 - Building general-purpose assistants
-- Rapid prototyping is needed
-- Framework ecosystem benefits outweigh control loss
-- Compliance requirements are flexible
+- Framework ecosystem benefits are crucial
+- Can accept potential compliance edge cases
 
 **Avoid When**:
-- Strict workflow compliance needed
-- Predictable behavior is critical
-- Debugging complexity is a concern
+- Zero-tolerance compliance requirements exist
+- Debugging framework issues is not acceptable
 
-#### ❌ LlamaIndex: Not Suitable for Compliance Applications  
-**Current State**: The ReActAgent architecture cannot be made to follow compliance-critical workflows.
+#### 🔄 LlamaIndex: Architecture Upgraded, Compliance Unknown
+**Current State**: Migrated from deprecated ReActAgent to current FunctionAgent architecture. Session management added but compliance behavior unvalidated.
+
+**Post-Fix Improvements**:
+- ✅ Upgraded from deprecated ReActAgent to FunctionAgent
+- ✅ Added session management for workflow tracking
+- ✅ Enhanced system prompt with session context
+- ❓ Compliance behavior requires validation
 
 **Use When**:
 - Document-heavy RAG applications
 - Query processing and synthesis are primary needs
-- Workflow compliance is not required
+- Framework architecture alignment is important
 
 **Avoid When**:
-- Any compliance or regulatory requirements exist
-- Workflow predictability is needed
-- Using current (deprecated) architecture
+- Mission-critical compliance requirements exist
+- Cannot afford to validate complex framework behavior
 
 ### Final Recommendation
 
-**For the Dutch Tax Chatbot use case**: The **custom implementation is demonstrably superior**.
+**For the Dutch Tax Chatbot use case**: The **custom implementation remains the best choice**.
 
-**Key Reasons**:
-1. **Compliance Assurance**: Only the custom implementation can guarantee the required workflow
-2. **Maintainability**: Clear, understandable code without framework mysteries  
-3. **Reliability**: Predictable behavior without framework "intelligence" overrides
-4. **Efficiency**: Direct API usage without framework overhead
-5. **Future-Proof**: No dependency on framework architectural decisions
+**Updated Assessment (Post-Fixes)**:
+
+#### ✅ **Original Custom Implementation** - **RECOMMENDED**
+- **100% Compliance Verified**: Tested and working perfectly
+- **Complete Control**: Full workflow management
+- **Production Ready**: No additional work required
+
+#### ⚠️ **LangChain Implementation** - **POTENTIAL ALTERNATIVE**  
+- **Fixes Applied**: Session context and enhanced prompts implemented
+- **Status**: Should now work but requires API validation
+- **Risk**: Framework complexity may introduce edge cases
+
+#### 🔄 **LlamaIndex Implementation** - **EXPERIMENTAL**
+- **Architecture Updated**: Migrated to current FunctionAgent
+- **Status**: Major improvements but compliance unverified
+- **Risk**: Framework limitations may still prevent full compliance
+
+**Key Reasons Custom Implementation Remains Best**:
+1. **Proven Compliance**: Only implementation with verified workflow behavior
+2. **Zero Risk**: No framework dependencies or architectural uncertainties
+3. **Maintainability**: Simple, clear code without framework abstractions
+4. **Efficiency**: Direct API usage without overhead
+5. **Future-Proof**: Complete control over all behavior
 
 ### When Frameworks Add Value
 

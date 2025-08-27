@@ -246,17 +246,41 @@ class TaxChatbot:
             context = "\n\nSESSION CONTEXT:\n"
             context += f"Verzamelde bronnen voor huidige vraag:\n"
             
+            # Collect complete source data for generate_tax_answer tool
+            legislation_sources = []
+            case_law_sources = []
+            
             for tool_name, result in session.sources.items():
                 if result.success:
                     context += f"- {tool_name}: ✓ Beschikbaar\n"
                     if result.data:
-                        # Add first item as example
+                        # Show first item completely for display
                         first_item = result.data[0] if isinstance(result.data, list) and result.data else str(result.data)
-                        context += f"  Voorbeeld: {first_item[:100]}...\n"
+                        context += f"  Voorbeeld: {first_item}\n"
+                        
+                        # Collect complete sources for tool use
+                        if tool_name == "get_legislation":
+                            legislation_sources = result.data if isinstance(result.data, list) else [str(result.data)]
+                        elif tool_name == "get_case_law":
+                            case_law_sources = result.data if isinstance(result.data, list) else [str(result.data)]
                 else:
                     context += f"- {tool_name}: ✗ Gefaald\n"
             
-            context += "\nBij gebruikersbevestiging, gebruik generate_tax_answer met deze verzamelde bronnen."
+            # Add complete source data for generate_tax_answer tool
+            context += "\nBij gebruikersbevestiging, gebruik generate_tax_answer met deze COMPLETE verzamelde bronnen:\n"
+            
+            if legislation_sources:
+                context += "\nLEGISLATIE BRONNEN voor generate_tax_answer:\n"
+                for i, source in enumerate(legislation_sources, 1):
+                    context += f"{i}. {source}\n"
+            
+            if case_law_sources:
+                context += "\nJURISPRUDENTIE BRONNEN voor generate_tax_answer:\n"
+                for i, source in enumerate(case_law_sources, 1):
+                    context += f"{i}. {source}\n"
+            
+            context += "\nROEP generate_tax_answer aan met question={user_question}, legislation={deze wetgeving lijst}, case_law={deze jurisprudentie lijst}"
+            
             return base_prompt + context
         
         return base_prompt

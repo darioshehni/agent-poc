@@ -50,7 +50,7 @@ BELANGRIJKE INSTRUCTIES:
 - Gebruik alleen de bronnen die relevant zijn voor de vraag. Benoem geen irrelevante bronnen.
 
 STRUCTUUR VAN HET ANTWOORD:
-- Leg eerst kort het verband tussen de vraag en de relevante bronnen uit. Als er geen relevantie is, geef dit dan aan.
+- Benoem eerst de relevante stukken wetgeving en jurisprudentie. Als er geen relevantie is, geef dit dan aan.
 - Eindig met een duidelijk maar beknopt antwoord op de vraag.
 
 GEBRUIKERSVRAAG:

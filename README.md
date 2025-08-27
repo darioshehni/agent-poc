@@ -16,7 +16,7 @@ Tax chatbot that leverages OpenAI's API and conversation context for workflow ma
 
 This implementation uses a **stateless, conversation-context approach** where:
 
-- ✅ **LLM understands workflow naturally** via conversation context
+- ✅ **LLM understands current intention of the user naturally** via conversation context
 - ✅ **No complex state machines** - OpenAI handles flow naturally
 - ✅ **Scalable API-first design** - perfect for microservices
 - ✅ **Clean architecture** with clear separation of concerns

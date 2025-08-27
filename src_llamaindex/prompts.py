@@ -56,7 +56,7 @@ SYNTHESIS INSTRUCTIES:
 - Demonstreer information integration capabilities
 
 STRUCTUUR VAN HET ANTWOORD:
-- Leg eerst kort het verband tussen de vraag en de relevante bronnen uit. Als er geen relevantie is, geef dit dan aan.
+- Benoem eerst de relevante stukken wetgeving en jurisprudentie. Als er geen relevantie is, geef dit dan aan.
 - Eindig met een duidelijk maar beknopt antwoord op de vraag.
 
 RESPONSE SYNTHESIS:
