@@ -131,7 +131,7 @@ class TaxChatbot:
         """Process message using AI with function calling."""
         
         # Build system prompt
-        system_prompt = self._build_system_prompt()
+        system_prompt = self._build_system_prompt(session)
         
         # Prepare conversation messages
         messages = [
@@ -223,7 +223,7 @@ class TaxChatbot:
         # Get final response after all function calls
         try:
             # Update system prompt
-            messages[0]["content"] = self._build_system_prompt()
+            messages[0]["content"] = self._build_system_prompt(session)
             
             final_response = self.llm_client.chat_completion(
                 messages=messages,
@@ -237,10 +237,29 @@ class TaxChatbot:
             logger.error(f"Error getting final response: {str(e)}")
             return f"Er is een fout opgetreden bij het genereren van het finale antwoord: {str(e)}"
     
-    @staticmethod
-    def _build_system_prompt() -> str:
-        """Build system prompt."""
-        return get_prompt_template("agent_system")
+    def _build_system_prompt(self, session) -> str:
+        """Build system prompt with session context."""
+        base_prompt = get_prompt_template("agent_system")
+        
+        # Add session context if there are sources
+        if session.sources:
+            context = "\n\nSESSION CONTEXT:\n"
+            context += f"Verzamelde bronnen voor huidige vraag:\n"
+            
+            for tool_name, result in session.sources.items():
+                if result.success:
+                    context += f"- {tool_name}: ✓ Beschikbaar\n"
+                    if result.data:
+                        # Add first item as example
+                        first_item = result.data[0] if isinstance(result.data, list) and result.data else str(result.data)
+                        context += f"  Voorbeeld: {first_item[:100]}...\n"
+                else:
+                    context += f"- {tool_name}: ✗ Gefaald\n"
+            
+            context += "\nBij gebruikersbevestiging, gebruik generate_tax_answer met deze verzamelde bronnen."
+            return base_prompt + context
+        
+        return base_prompt
     
     
     def get_session_info(self) -> Dict[str, Any]:

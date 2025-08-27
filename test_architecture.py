@@ -136,6 +136,20 @@ def test_real_openai():
         info = chatbot.get_session_info()
         print(f"\nSession after tax question: {info}")
         
+        # Test confirmation step if sources were shown
+        if "Zijn deze bronnen correct" in response:
+            print("\n=== Testing Source Confirmation ===")
+            print("User: ja")
+            confirmation_response = chatbot.process_message("ja")
+            print(f"Bot: {confirmation_response}")
+            
+            # Verify generate_tax_answer was used
+            if len(confirmation_response) > 200:
+                print("✅ Confirmation worked - got detailed answer")
+            else:
+                print(f"❌ Confirmation failed - response too short ({len(confirmation_response)} chars)")
+                print(f"Response: {confirmation_response}")
+        
     except Exception as e:
         print(f"Error testing with OpenAI: {e}")
 
