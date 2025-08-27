@@ -4,13 +4,3 @@ pydantic>=2.5.0,<3.0.0
 openai==1.51.0
 python-dotenv==1.0.0
 httpx==0.24.1
-
-# LangChain implementation dependencies
-langchain==0.3.27
-langchain-openai==0.2.2
-langchain-community==0.3.28
-
-# LlamaIndex implementation dependencies  
-llama-index==0.12.38
-llama-index-llms-openai==0.3.3
-llama-index-embeddings-openai==0.3.1

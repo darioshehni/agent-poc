@@ -17,7 +17,7 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from base import WorkflowState, ToolManager
-from sessions import QuerySession, SessionManager
+from sessions import Conversation, SessionManager
 from llm import OpenAIClient, LLMClient
 from tools.legislation_tool import LegislationTool
 from tools.case_law_tool import CaseLawTool
@@ -136,7 +136,7 @@ class TaxChatbot:
             logger.error(f"Error processing message: {str(e)}", exc_info=True)
             return f"Er is een onverwachte fout opgetreden: {str(e)}. Probeer het opnieuw."
     
-    def _process_with_ai(self, session: QuerySession) -> str:
+    def _process_with_ai(self, session: Conversation) -> str:
         """Process one user turn using LLM + tools, returning assistant text."""
 
         # Build system prompt

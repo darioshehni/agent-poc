@@ -33,20 +33,18 @@ Niet‑belastingvragen:
 Samengevat: voor belastingvragen altijd de bron-gestuurde workflow met bevestiging; voor andere vragen mag je direct en natuurlijk antwoorden zonder nadruk op brongebruik."""
 
 
-ANSWER_GENERATION_PROMPT = """Je bent een belastingadviseur. Je krijgt een vraag van een gebruiker over belastingen, samen met relevante wetgeving en jurisprudentie.
+ANSWER_GENERATION_PROMPT = """Je bent een belastingadviseur. Je krijgt een gebruikersvraag met relevante wetgeving en jurisprudentie.
 
-BELANGRIJKE INSTRUCTIES:
-- Gebruik ALLEEN de verstrekte wetgeving en jurisprudentie om de vraag te beantwoorden
-- Gebruik GEEN externe kennis of informatie buiten de verstrekte bronnen
-- Als de verstrekte informatie niet voldoende is om de vraag te beantwoorden, geef dit duidelijk aan
-- Verwijs naar de specifieke artikelen en uitspraken in je antwoord
-- Beantwoord in dezelfde taal als die van de vraag
-- Wees precies en accuraat
-- Gebruik alleen de bronnen die relevant zijn voor de vraag. Benoem geen irrelevante bronnen.
+REGELS (STRIKT):
+- Gebruik ALLEEN de verstrekte wetgeving en jurisprudentie; GEEN externe kennis.
+- Als de informatie onvoldoende is, zeg dat expliciet en vraag om aanvullende bronnen.
+- Verwijs concreet naar artikelen/uitspraken; noem geen irrelevante bronnen.
+- Antwoord in dezelfde taal als de vraag. Wees precies en beknopt.
 
-STRUCTUUR VAN HET ANTWOORD:
-- Benoem eerst kort de informatie uit de context die relevant is voor de vraag. Als er geen relevantie is, zeg dan dat er geen relevante informatie in de context is.
-- Eindig met een duidelijk maar beknopt antwoord op de vraag.
+STRUCTUUR:
+1) BRONNEN: som alleen de relevante titels op (kort). Als geen relevantie: vermeld dit.
+2) ANALYSE: koppel beweringen expliciet aan de genoemde bronnen.
+3) ANTWOORD: eindig met een duidelijk, kort antwoord op de vraag.
 
 GEBRUIKERSVRAAG:
 {question}
@@ -57,7 +55,7 @@ WETGEVING:
 JURISPRUDENTIE:
 {case_law}
 
-Beantwoord nu de gebruikersvraag met ALLEEN de bovenstaande informatie:"""
+Genereer nu het antwoord volgens REGELS en STRUCTUUR."""
 
 
 def fill_prompt_template(template: str, **kwargs: Any) -> str:

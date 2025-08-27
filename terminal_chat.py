@@ -4,10 +4,7 @@ Terminal interface for the Tax Chatbot.
 Run this file to interact with the agent through your terminal.
 
 Usage:
-    python terminal_chat.py                    # Use original implementation (default)
-    python terminal_chat.py --framework original
-    python terminal_chat.py --framework langchain
-    python terminal_chat.py --framework llamaindex
+    python terminal_chat.py                    # Start the original implementation
 """
 
 import sys
@@ -15,56 +12,29 @@ import os
 import argparse
 import uuid
 from pathlib import Path
-from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
 
-def get_chatbot(framework: str, session_id: str):
-    """Initialize chatbot based on selected framework."""
-    if framework == "original":
-        # Add original src to path
-        src_path = Path(__file__).parent / "src"
-        sys.path.insert(0, str(src_path))
-        
-        from agent import TaxChatbot
-        from llm import OpenAIClient
-        
-        llm_client = OpenAIClient()
-        return TaxChatbot(llm_client=llm_client, session_id=session_id)
-        
-    elif framework == "langchain":
-        # Add LangChain src to path
-        src_path = Path(__file__).parent / "src_langchain"
-        sys.path.insert(0, str(src_path))
-        
-        from agent import LangChainTaxChatbot
-        return LangChainTaxChatbot(session_id=session_id)
-        
-    elif framework == "llamaindex":
-        # Add LlamaIndex src to path  
-        src_path = Path(__file__).parent / "src_llamaindex"
-        sys.path.insert(0, str(src_path))
-        
-        from agent import LlamaIndexTaxChatbot
-        return LlamaIndexTaxChatbot(session_id=session_id)
-        
-    else:
-        raise ValueError(f"Unknown framework: {framework}")
+def get_chatbot(session_id: str):
+    """Initialize the original chatbot implementation."""
+    # Add original src to path
+    src_path = Path(__file__).parent / "src"
+    sys.path.insert(0, str(src_path))
+
+    from agent import TaxChatbot
+    from llm import OpenAIClient
+
+    llm_client = OpenAIClient()
+    return TaxChatbot(llm_client=llm_client, session_id=session_id)
 
 
 def main():
     """Main terminal interface."""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Dutch Tax Chatbot - Framework Comparison")
-    parser.add_argument(
-        "--framework",
-        choices=["original", "langchain", "llamaindex"], 
-        default="original",
-        help="Choose which framework implementation to use (default: original)"
-    )
+    parser = argparse.ArgumentParser(description="Tax Chatbot")
     parser.add_argument(
         "--session",
         default="",
@@ -73,7 +43,6 @@ def main():
     args = parser.parse_args()
     
     try:
-        # Initialize chatbot based on framework choice
         # Resolve session id
         session_id = args.session.strip()
         if not session_id:
@@ -86,23 +55,18 @@ def main():
             except Exception:
                 pass
 
-        chatbot = get_chatbot(args.framework, session_id)
-        framework_name = args.framework.title()
-        
+        chatbot = get_chatbot(session_id)
+
     except Exception as e:
-        print(f"❌ Error initializing {args.framework} chatbot: {e}")
+        print(f"❌ Error initializing chatbot: {e}")
         print("Make sure your OPENAI_API_KEY is set in .env file")
-        if args.framework != "original":
-            print(f"Also ensure you have installed the {args.framework} dependencies from requirements.txt")
-        return
     
     print("=" * 70)
-    print(f"🏛️  NEDERLANDSE BELASTING CHATBOT ({framework_name})")
+    print("🏛️  NEDERLANDSE BELASTING CHATBOT (ORIGINAL)")
     print("=" * 70)
     print("Welkom! Ik kan u helpen met Nederlandse belastingvragen.")
     print("Type 'quit', 'exit', of 'stop' om te stoppen.")
     # Commands removed; interact naturally with the agent.
-    print(f"Framework: {framework_name}")
     print(f"Session ID: {session_id}")
     print("-" * 70)
     

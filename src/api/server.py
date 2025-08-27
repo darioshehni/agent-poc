@@ -51,14 +51,9 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Tax Chatbot API")
     
     try:
-        # Initialize LLM client
         llm_client = OpenAIClient()
-        
-        # Initialize chatbot
         chatbot = TaxChatbot(llm_client=llm_client)
-        
         logger.info("Tax Chatbot API started successfully")
-        
     except Exception as e:
         logger.error(f"Failed to start application: {str(e)}")
         raise

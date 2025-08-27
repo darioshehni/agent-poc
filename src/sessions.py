@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class QuerySession:
+class Conversation:
     """Manages the state of a single conversation session."""
     
     session_id: str
@@ -151,19 +151,19 @@ class SessionManager:
     """
     
     def __init__(self):
-        self._sessions: Dict[str, QuerySession] = {}
+        self._sessions: Dict[str, Conversation] = {}
     
-    def create_session(self, session_id: str) -> QuerySession:
+    def create_session(self, session_id: str) -> Conversation:
         """Create a new in-memory session with empty dossier and history."""
-        session = QuerySession(session_id=session_id)
+        session = Conversation(session_id=session_id)
         self._sessions[session_id] = session
         return session
     
-    def get_session(self, session_id: str) -> Optional[QuerySession]:
+    def get_session(self, session_id: str) -> Optional[Conversation]:
         """Get an existing session."""
         return self._sessions.get(session_id)
     
-    def get_or_create_session(self, session_id: str) -> QuerySession:
+    def get_or_create_session(self, session_id: str) -> Conversation:
         """Get existing session or create one, hydrating dossier if available.
 
         If this is the first time we see the session_id and a dossier JSON
@@ -208,7 +208,7 @@ class SessionManager:
     def _dossier_path(self, session_id: str) -> Path:
         return self._base_dir() / f"{session_id}.json"
 
-    def save_session(self, session: QuerySession) -> None:
+    def save_session(self, session: Conversation) -> None:
         """Persist a session snapshot (dossier + summary) to local JSON."""
         try:
             base = self._base_dir()
@@ -228,7 +228,7 @@ class SessionManager:
         except Exception as e:
             logger.warning(f"Failed to save dossier for session {session.session_id}: {e}")
 
-    def load_session(self, session_id: str) -> Optional[QuerySession]:
+    def load_session(self, session_id: str) -> Optional[Conversation]:
         """Load a session from local JSON if available, else return None."""
         path = self._dossier_path(session_id)
         if not path.exists():
@@ -236,7 +236,7 @@ class SessionManager:
         try:
             with path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
-            session = QuerySession(session_id=session_id)
+            session = Conversation(session_id=session_id)
             from .models import Dossier  # local import to avoid cycles at import time
             dossier = Dossier.from_dict(data.get("dossier", {}))
             session.dossier = dossier
@@ -264,7 +264,7 @@ class SessionManager:
             logger.warning(f"Failed to load dossier for session {session_id}: {e}")
             return None
 
-    def _mirror_dossier_to_sources(self, session: QuerySession) -> None:
+    def _mirror_dossier_to_sources(self, session: Conversation) -> None:
         """Reconstruct session.sources from the dossier contents.
 
         This provides a consistent view for context builders that rely on

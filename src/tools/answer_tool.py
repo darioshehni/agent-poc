@@ -137,8 +137,8 @@ class AnswerTool(BaseTool):
                 temperature=0.0,
                 max_tokens=2000
             )
-            
-            answer = response["choices"][0]["message"]["content"]
+
+            answer = response["choices"][0]["message"].get("content", "")
             
             if not answer or not answer.strip():
                 return ToolResult(
@@ -152,7 +152,7 @@ class AnswerTool(BaseTool):
                 success=True,
                 data=answer.strip(),
                 metadata={
-                    "question": question,
+                    "question": q,
                     "legislation_count": len(legislation_texts),
                     "case_law_count": len(case_law_texts),
                     "prompt_tokens": response.get("usage", {}).get("prompt_tokens", 0),

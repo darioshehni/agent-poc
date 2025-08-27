@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 import json
 import logging
 
-from sessions import QuerySession
+from sessions import Conversation
 from base import ToolManager, WorkflowState
 
 
@@ -34,7 +34,7 @@ class ToolCallHandler:
         self.logger = logger or logging.getLogger(__name__)
 
     def handle(self,
-               session: QuerySession,
+               session: Conversation,
                messages: List[Dict[str, Any]],
                response_message: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Process tool calls from an assistant response and extend messages.
