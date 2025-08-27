@@ -13,6 +13,8 @@ Usage:
 import sys
 import os
 import argparse
+import uuid
+from pathlib import Path
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -20,7 +22,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def get_chatbot(framework: str):
+def get_chatbot(framework: str, session_id: str):
     """Initialize chatbot based on selected framework."""
     if framework == "original":
         # Add original src to path
@@ -31,7 +33,7 @@ def get_chatbot(framework: str):
         from llm import OpenAIClient
         
         llm_client = OpenAIClient()
-        return TaxChatbot(llm_client=llm_client, session_id="terminal_session")
+        return TaxChatbot(llm_client=llm_client, session_id=session_id)
         
     elif framework == "langchain":
         # Add LangChain src to path
@@ -39,7 +41,7 @@ def get_chatbot(framework: str):
         sys.path.insert(0, str(src_path))
         
         from agent import LangChainTaxChatbot
-        return LangChainTaxChatbot(session_id="terminal_session")
+        return LangChainTaxChatbot(session_id=session_id)
         
     elif framework == "llamaindex":
         # Add LlamaIndex src to path  
@@ -47,7 +49,7 @@ def get_chatbot(framework: str):
         sys.path.insert(0, str(src_path))
         
         from agent import LlamaIndexTaxChatbot
-        return LlamaIndexTaxChatbot(session_id="terminal_session")
+        return LlamaIndexTaxChatbot(session_id=session_id)
         
     else:
         raise ValueError(f"Unknown framework: {framework}")
@@ -63,11 +65,28 @@ def main():
         default="original",
         help="Choose which framework implementation to use (default: original)"
     )
+    parser.add_argument(
+        "--session",
+        default="",
+        help="Optional session ID to resume or share. If omitted, a new one is generated."
+    )
     args = parser.parse_args()
     
     try:
         # Initialize chatbot based on framework choice
-        chatbot = get_chatbot(args.framework)
+        # Resolve session id
+        session_id = args.session.strip()
+        if not session_id:
+            session_id = f"term-{uuid.uuid4().hex[:8]}"
+            # Store last terminal session id
+            try:
+                base = Path("data/sessions")
+                base.mkdir(parents=True, exist_ok=True)
+                (base / "terminal_last.json").write_text(session_id, encoding="utf-8")
+            except Exception:
+                pass
+
+        chatbot = get_chatbot(args.framework, session_id)
         framework_name = args.framework.title()
         
     except Exception as e:
@@ -82,8 +101,9 @@ def main():
     print("=" * 70)
     print("Welkom! Ik kan u helpen met Nederlandse belastingvragen.")
     print("Type 'quit', 'exit', of 'stop' om te stoppen.")
-    print("Type 'help' voor meer informatie over wat ik kan doen.")
+    # Commands removed; interact naturally with the agent.
     print(f"Framework: {framework_name}")
+    print(f"Session ID: {session_id}")
     print("-" * 70)
     
     while True:

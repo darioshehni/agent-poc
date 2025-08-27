@@ -16,7 +16,6 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tools.legislation_tool import get_legislation
 from tools.case_law_tool import get_case_law
 from tools.answer_tool import generate_answer
-from commands import LangChainCommandProcessor
 
 # Use LangChain-specific prompts
 from prompts import get_langchain_prompt_template
@@ -62,8 +61,6 @@ class LangChainTaxChatbot:
         # Available tools
         self.tools = [get_legislation, get_case_law, generate_answer]
         
-        # LangChain command processor
-        self.command_processor = LangChainCommandProcessor()
         
         # Create agent with LangChain's prompt template system
         self.agent = self._create_agent()
@@ -150,12 +147,6 @@ class LangChainTaxChatbot:
             
             # Add user message to session
             session.add_message("user", user_input)
-            
-            # Check for LangChain-specific commands first
-            command_response = self.command_processor.process_message(user_input, self)
-            if command_response:
-                session.add_message("assistant", command_response)
-                return command_response
             
             # Recreate agent with updated context (LangChain limitation)
             self.agent = self._create_agent()
@@ -247,6 +238,4 @@ class LangChainTaxChatbot:
         """List available tools."""
         return [tool.name for tool in self.tools]
     
-    def list_available_commands(self) -> List[str]:
-        """List available commands (LangChain handles most automatically)."""
-        return ["reset", "session_info", "help"]
+    # Commands removed: leave behavior to the agent and prompts

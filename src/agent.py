@@ -5,9 +5,11 @@ This implementation focuses on:
 - Clean separation of concerns
 - Extensible tool system
 - Proper state management
-- Command pattern for user actions
 - Professional error handling
 - Easy testing and maintenance
+
+The agent now delegates prompt/context construction and tool-call execution to
+dedicated helpers so this file remains an orchestration layer.
 """
 
 import json
@@ -16,12 +18,13 @@ from typing import Dict, Any, List, Optional
 
 from base import WorkflowState, ToolManager
 from sessions import QuerySession, SessionManager
-from commands import CommandProcessor
 from llm import OpenAIClient, LLMClient
 from tools.legislation_tool import LegislationTool
 from tools.case_law_tool import CaseLawTool
 from tools.answer_tool import AnswerTool
-from prompts import get_prompt_template
+from tools.remove_sources_tool import RemoveSourcesTool
+from context import ContextBuilder
+from tool_calls import ToolCallHandler
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,15 +32,13 @@ logger = logging.getLogger(__name__)
 
 
 class TaxChatbot:
-    """
-    Advanced Tax Chatbot with clean architecture.
-    
-    Features:
-    - Intelligent workflow management
-    - Extensible tool system
-    - User command processing
-    - Multi-session support
-    - Comprehensive error handling
+    """Orchestrates chat between the user, tools, and the LLM.
+
+    Responsibilities:
+    - Maintain per-session state via SessionManager
+    - Issue LLM calls with function-calling tools available
+    - Delegate tool-call execution and context construction to helpers
+    - Return the assistant's final response as a string
     """
     
     def __init__(
@@ -57,7 +58,8 @@ class TaxChatbot:
         self.llm_client = llm_client or OpenAIClient()
         self.session_manager = SessionManager()
         self.tool_manager = ToolManager()
-        self.command_processor = CommandProcessor()
+        self.context_builder = ContextBuilder()
+        self.tool_call_handler = ToolCallHandler(self.tool_manager)
         
         # Current session
         self.session_id = session_id
@@ -71,12 +73,22 @@ class TaxChatbot:
         """Register all available tools."""
         
         # Create tool instances
-        answer_tool = AnswerTool(self.llm_client)
+        answer_tool = AnswerTool(
+            llm_client=self.llm_client,
+            session_manager=self.session_manager,
+            session_id_getter=lambda: self.session_id,
+        )
+        remove_tool = RemoveSourcesTool(
+            llm_client=self.llm_client,
+            session_manager=self.session_manager,
+            session_id_getter=lambda: self.session_id,
+        )
         
         # Register tools
         self.tool_manager.register(LegislationTool())
         self.tool_manager.register(CaseLawTool())
         self.tool_manager.register(answer_tool)
+        self.tool_manager.register(remove_tool)
         
         # Validate all tools
         validation_errors = self.tool_manager.validate_tools()
@@ -104,14 +116,11 @@ class TaxChatbot:
             
             # Add user message to history
             session.add_message("user", user_input)
+            # Track the current question for downstream tools unless it's a short confirmation
+            if not self._is_confirmation(user_input):
+                session.current_question = user_input
             
             logger.info(f"Processing message for session {self.session_id}: {user_input[:50]}...")
-            
-            # Check for commands first
-            command_response = self.command_processor.process_message(user_input, session)
-            if command_response:
-                session.add_message("assistant", command_response)
-                return command_response
             
             # No need for explicit confirmation handling - LLM handles it via context
             
@@ -128,10 +137,10 @@ class TaxChatbot:
             return f"Er is een onverwachte fout opgetreden: {str(e)}. Probeer het opnieuw."
     
     def _process_with_ai(self, session: QuerySession) -> str:
-        """Process message using AI with function calling."""
-        
+        """Process one user turn using LLM + tools, returning assistant text."""
+
         # Build system prompt
-        system_prompt = self._build_system_prompt(session)
+        system_prompt = self.context_builder.build_system_prompt(session)
         
         # Prepare conversation messages
         messages = [
@@ -161,7 +170,24 @@ class TaxChatbot:
             
             # Handle function calls
             if "tool_calls" in response_message:
-                return self._handle_function_calls(session, messages, response_message)
+                # Execute tool calls, update session, extend messages
+                self.tool_call_handler.handle(session, messages, response_message)
+                # Persist dossier snapshot (best-effort)
+                try:
+                    self.session_manager.save_session(session)
+                except Exception:
+                    pass
+
+                # Refresh system prompt with updated session context
+                messages[0]["content"] = self.context_builder.build_system_prompt(session)
+
+                # Get final response from the LLM
+                final_response = self.llm_client.chat_completion(
+                    messages=messages,
+                    temperature=0.0
+                )
+                final_content = final_response["choices"][0]["message"].get("content")
+                return final_content or "Ik kon geen antwoord genereren op basis van de beschikbare informatie."
             else:
                 # Direct response without function calls
                 return response_message["content"] or "Ik kon geen passend antwoord genereren."
@@ -170,120 +196,7 @@ class TaxChatbot:
             logger.error(f"Error in AI processing: {str(e)}", exc_info=True)
             return f"Er is een fout opgetreden bij het verwerken van uw vraag: {str(e)}"
     
-    def _handle_function_calls(
-        self, 
-        session: QuerySession, 
-        messages: List[Dict[str, str]], 
-        response_message: Dict[str, Any]
-    ) -> str:
-        """Handle AI function calls and return final response."""
-        
-        # Add assistant message with tool calls to conversation
-        messages.append({
-            "role": "assistant",
-            "content": response_message.get("content"),
-            "tool_calls": response_message["tool_calls"]
-        })
-        
-        # Execute each function call
-        for tool_call in response_message["tool_calls"]:
-            try:
-                function_name = tool_call["function"]["name"]
-                arguments = json.loads(tool_call["function"]["arguments"])
-                
-                logger.info(f"Executing tool: {function_name}")
-                
-                # Execute tool through manager
-                result_str = self.tool_manager.execute_function_call(function_name, arguments)
-                result_data = json.loads(result_str)
-                
-                # Update session state if this was a source-gathering tool
-                if function_name in ["get_legislation", "get_case_law"] and result_data["success"]:
-                    tool_result = self.tool_manager.execute_tool(function_name, **arguments)
-                    session.add_source(function_name, tool_result)
-                    session.transition_to(WorkflowState.ACTIVE)
-                
-                # Add tool result to conversation
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call["id"],
-                    "content": result_str
-                })
-                
-            except Exception as e:
-                logger.error(f"Error executing tool call: {str(e)}")
-                # Add error result
-                error_result = json.dumps({"success": False, "error": str(e)})
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call["id"],
-                    "content": error_result
-                })
-        
-        # Get final response after all function calls
-        try:
-            # Update system prompt
-            messages[0]["content"] = self._build_system_prompt(session)
-            
-            final_response = self.llm_client.chat_completion(
-                messages=messages,
-                temperature=0.0
-            )
-            
-            final_content = final_response["choices"][0]["message"]["content"]
-            return final_content or "Ik kon geen antwoord genereren op basis van de beschikbare informatie."
-            
-        except Exception as e:
-            logger.error(f"Error getting final response: {str(e)}")
-            return f"Er is een fout opgetreden bij het genereren van het finale antwoord: {str(e)}"
-    
-    def _build_system_prompt(self, session) -> str:
-        """Build system prompt with session context."""
-        base_prompt = get_prompt_template("agent_system")
-        
-        # Add session context if there are sources
-        if session.sources:
-            context = "\n\nSESSION CONTEXT:\n"
-            context += f"Verzamelde bronnen voor huidige vraag:\n"
-            
-            # Collect complete source data for generate_tax_answer tool
-            legislation_sources = []
-            case_law_sources = []
-            
-            for tool_name, result in session.sources.items():
-                if result.success:
-                    context += f"- {tool_name}: ✓ Beschikbaar\n"
-                    if result.data:
-                        # Show first item completely for display
-                        first_item = result.data[0] if isinstance(result.data, list) and result.data else str(result.data)
-                        context += f"  Voorbeeld: {first_item}\n"
-                        
-                        # Collect complete sources for tool use
-                        if tool_name == "get_legislation":
-                            legislation_sources = result.data if isinstance(result.data, list) else [str(result.data)]
-                        elif tool_name == "get_case_law":
-                            case_law_sources = result.data if isinstance(result.data, list) else [str(result.data)]
-                else:
-                    context += f"- {tool_name}: ✗ Gefaald\n"
-            
-            # Add complete source data for generate_tax_answer tool
-            context += "\nBij gebruikersbevestiging, gebruik generate_tax_answer met deze COMPLETE verzamelde bronnen:\n"
-            
-            if legislation_sources:
-                context += "\nLEGISLATIE BRONNEN voor generate_tax_answer:\n"
-                for i, source in enumerate(legislation_sources, 1):
-                    context += f"{i}. {source}\n"
-            
-            if case_law_sources:
-                context += "\nJURISPRUDENTIE BRONNEN voor generate_tax_answer:\n"
-                for i, source in enumerate(case_law_sources, 1):
-                    context += f"{i}. {source}\n"
-            
-            context += "\nROEP generate_tax_answer aan met question={user_question}, legislation={deze wetgeving lijst}, case_law={deze jurisprudentie lijst}"
-            
-            return base_prompt + context
-        
-        return base_prompt
+    # Context building and tool-call execution are delegated to helpers
     
     
     def get_session_info(self) -> Dict[str, Any]:
@@ -292,15 +205,25 @@ class TaxChatbot:
         if not session:
             return {"error": "No active session"}
         
-        return {
+        info = {
             "session_id": session.session_id,
             "state": session.state.value,
             "question": session.current_question,
             "sources": session.get_source_summary(),
             "message_count": len(session.conversation_history),
             "created_at": session.created_at.isoformat(),
-            "updated_at": session.updated_at.isoformat()
+            "updated_at": session.updated_at.isoformat(),
         }
+
+        # Add selected vs unselected titles for quick confirmation UIs
+        try:
+            info["selected_titles"] = session.dossier.selected_titles()
+            info["unselected_titles"] = session.dossier.unselected_titles()
+        except Exception:
+            info["selected_titles"] = []
+            info["unselected_titles"] = []
+
+        return info
     
     def reset_session(self) -> str:
         """Reset the current session."""
@@ -317,12 +240,30 @@ class TaxChatbot:
         """Get list of available tools."""
         return self.tool_manager.list_tools()
     
-    def list_available_commands(self) -> List[str]:
-        """Get list of available commands."""
-        return self.command_processor.list_commands()
+    # Commands removed: agent handles conversational intents via LLM
     
     def cleanup_old_sessions(self, hours: int = 24) -> int:
         """Clean up old sessions."""
         removed = self.session_manager.cleanup_old_sessions(hours)
         logger.info(f"Cleaned up {removed} old sessions")
         return removed
+
+    # --- Internal helpers ---
+    def _is_confirmation(self, text: str) -> bool:
+        """Heuristic: detect short yes/no confirmations to avoid overwriting the question.
+
+        Returns True for inputs like 'ja', 'nee', 'yes', 'no', 'klopt', 'correct',
+        and short variants like 'ja, klopt'. This keeps the original tax question
+        intact across the confirm → answer phase.
+        """
+        t = (text or "").strip().lower()
+        if not t:
+            return False
+        keywords = {"ja", "nee", "yes", "no", "klopt", "correct"}
+        if t in keywords:
+            return True
+        # Short affirmations containing a keyword (<= 3 words)
+        words = [w.strip(",.!?") for w in t.split()]
+        if len(words) <= 3 and any(w in keywords for w in words):
+            return True
+        return False

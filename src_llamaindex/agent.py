@@ -16,7 +16,6 @@ from llama_index.core.workflow import Context
 from tools.legislation_tool import legislation_tool
 from tools.case_law_tool import case_law_tool
 from tools.answer_tool import answer_tool
-from commands import LlamaIndexCommandProcessor
 
 # Use LlamaIndex-specific prompts
 from prompts import get_llamaindex_prompt_template
@@ -57,8 +56,6 @@ class LlamaIndexTaxChatbot:
         # LlamaIndex memory management
         self.memory = ChatMemoryBuffer.from_defaults(token_limit=4000)
         
-        # LlamaIndex command processor
-        self.command_processor = LlamaIndexCommandProcessor()
         
         # Create FunctionAgent with current LlamaIndex architecture
         self.agent = FunctionAgent(
@@ -134,12 +131,6 @@ class LlamaIndexTaxChatbot:
             
             # Add user message to session
             session.add_message("user", user_input)
-            
-            # Check for LlamaIndex-specific commands first
-            command_response = self.command_processor.process_message(user_input, self)
-            if command_response:
-                session.add_message("assistant", command_response)
-                return command_response
             
             # Update agent with new system prompt including session context
             # Note: LlamaIndex may still have limitations with prompt updates
@@ -218,6 +209,4 @@ class LlamaIndexTaxChatbot:
         """List available LlamaIndex tools."""
         return [tool.metadata.name for tool in self.tools]
     
-    def list_available_commands(self) -> List[str]:
-        """List available commands."""
-        return ["reset", "session_info", "help"]
+    # Commands removed: leave behavior to the agent and prompts

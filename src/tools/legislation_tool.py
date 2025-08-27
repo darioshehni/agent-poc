@@ -12,32 +12,39 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+try:
+    from ..models import Legislation
+except ImportError:
+    from models import Legislation
+
 
 class LegislationTool(BaseTool):
     """Tool for retrieving relevant Dutch tax legislation."""
     
     def __init__(self):
         # In a real implementation, this would connect to a database or search system
-        self._sample_legislation = [
-            {
-                "content":
-"""Wet op de vennootschapsbelasting 1969, artikel 13:
-De deelnemingsvrijstelling is een belangrijke fiscale regeling in de Nederlandse vennootschapsbelasting.
-Kort gezegd betekent het dat een bedrijf (bijvoorbeeld een BV of NV) geen belasting hoeft te betalen over winst (dividenden of verkoopwinsten) die het ontvangt uit een kwalificerende deelneming. Zo wordt dubbele belasting voorkomen: de winst is namelijk al belast bij de dochtermaatschappij die de winst maakte.
-Voorwaarden deelnemingsvrijstelling
-De deelnemingsvrijstelling geldt meestal als:
-Aandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in de dochtermaatschappij.
-""",
-                "source": "Wet op de vennootschapsbelasting 1969, artikel 13",
-                "article": "artikel 13",
-                "law": "Wet VPB"
-            },
-            {
-                "content": "Wet op de omzetbelasting 1968, artikel 2: het btw-tarief op goederen is 21%",
-                "source": "Wet op de omzetbelasting 1968, artikel 2", 
-                "article": "artikel 2",
-                "law": "Wet OB"
-            }
+        self._sample_legislation: List[Legislation] = [
+            Legislation(
+                title="Wet op de vennootschapsbelasting 1969, artikel 13",
+                law="Wet VPB",
+                article="artikel 13",
+                content=(
+                    "Wet op de vennootschapsbelasting 1969, artikel 13:\n"
+                    "De deelnemingsvrijstelling is een belangrijke fiscale regeling in de Nederlandse vennootschapsbelasting.\n"
+                    "Kort gezegd betekent het dat een bedrijf (bijvoorbeeld een BV of NV) geen belasting hoeft te betalen over winst (dividenden of verkoopwinsten) die het ontvangt uit een kwalificerende deelneming. Zo wordt dubbele belasting voorkomen: de winst is namelijk al belast bij de dochtermaatschappij die de winst maakte.\n"
+                    "Voorwaarden deelnemingsvrijstelling\n"
+                    "De deelnemingsvrijstelling geldt meestal als:\n"
+                    "Aandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in de dochtermaatschappij.\n"
+                ),
+                citation="Wet VPB 1969 art. 13",
+            ),
+            Legislation(
+                title="Wet op de omzetbelasting 1968, artikel 2",
+                law="Wet OB",
+                article="artikel 2",
+                content="Wet op de omzetbelasting 1968, artikel 2: het btw-tarief op goederen is 21%",
+                citation="Wet OB 1968 art. 2",
+            ),
         ]
     
     @property
@@ -86,9 +93,9 @@ Aandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in d
                     error_message="Geen relevante wetgeving gevonden voor deze vraag."
                 )
             
-            # Format results
-            formatted_results = [item["content"] for item in relevant_legislation]
-            source_names = [item["source"] for item in relevant_legislation]
+            # Return dataclass objects; metadata holds titles for quick display
+            formatted_results = relevant_legislation
+            source_names = [item.title for item in relevant_legislation]
             
             result = ToolResult(
                 success=True,
@@ -112,35 +119,32 @@ Aandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in d
                 error_message=f"Fout bij het zoeken in wetgeving: {str(e)}"
             )
     
-    def _search_legislation(self, query: str) -> List[Dict[str, Any]]:
+    def _search_legislation(self, query: str) -> List[Legislation]:
         """
         Simple keyword-based search.
         In production, this would be much more sophisticated.
         """
         query_lower = query.lower()
-        results = []
-        
-        # Simple keyword matching
+        results: List[Legislation] = []
+
+        # Simple keyword matching using sample dataclasses
         for item in self._sample_legislation:
-            content_lower = item["content"].lower()
-            
-            # Check for matches
+            content_lower = (item.content or "").lower()
+            title_lower = (item.title or "").lower()
+
             if any(keyword in content_lower for keyword in ["btw", "vpb", "belasting", "deelneming", "tarief"]):
                 results.append(item)
-            elif any(keyword in query_lower for keyword in ["btw", "omzet"] if "btw" in content_lower):
+                continue
+            if any(keyword in query_lower for keyword in ["btw", "omzet"] ) and "btw" in content_lower:
                 results.append(item)
-            elif any(keyword in query_lower for keyword in ["vennootschap", "deelneming"] if "vpb" in content_lower):
+                continue
+            if any(keyword in query_lower for keyword in ["vennootschap", "deelneming"] ) and ("vpb" in content_lower or "vennootschaps" in title_lower):
                 results.append(item)
-        
+
+        # If generic tax terms present but nothing matched, return all as demo
+        if not results and any(t in query_lower for t in ["belasting", "tarief"]):
+            results = list(self._sample_legislation)
+
         return results
     
-    def get_source_names(self) -> List[str]:
-        """Get available source names (for backward compatibility)."""
-        return [item["source"] for item in self._sample_legislation]
-    
-    def retrieve_legislation(self, query: str) -> List[str]:
-        """Legacy method for backward compatibility."""
-        result = self.execute(query)
-        if result.success:
-            return result.data
-        return []
+    # Legacy accessors removed; use execute() and session/dossier instead

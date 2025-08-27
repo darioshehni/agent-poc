@@ -16,8 +16,10 @@ from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends, status
+import uuid
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from typing import List, Optional
 from dotenv import load_dotenv
 
 # Add src to path so we can import our modules
@@ -111,6 +113,8 @@ class SessionInfo(BaseModel):
     message_count: int
     created_at: str
     updated_at: str
+    selected_titles: List[str] = []
+    unselected_titles: List[str] = []
 
 
 class ErrorResponse(BaseModel):
@@ -151,8 +155,7 @@ async def root():
             "GET /session/{session_id}": "Get session information",
             "DELETE /session/{session_id}": "Reset a session",
             "GET /health": "Health check",
-            "GET /tools": "List available tools",
-            "GET /commands": "List available commands"
+            "GET /tools": "List available tools"
         }
     }
 
@@ -173,15 +176,18 @@ async def chat(
     try:
         logger.info(f"Chat request for session {chat_message.session_id}: {chat_message.message[:50]}...")
         
-        # Set the bot's session ID
-        bot.session_id = chat_message.session_id
+        # Determine session ID (auto-generate if missing/default)
+        session_id = chat_message.session_id or ""
+        if session_id.strip() == "" or session_id.strip().lower() == "default":
+            session_id = f"sess-{uuid.uuid4().hex[:8]}"
+        bot.session_id = session_id
         
         # Process the message
         response = bot.process_message(chat_message.message)
         
         return ChatResponse(
             response=response,
-            session_id=chat_message.session_id,
+            session_id=session_id,
             status="success"
         )
         
@@ -294,24 +300,7 @@ async def list_tools(bot: TaxChatbot = Depends(get_chatbot)) -> Dict[str, Any]:
         )
 
 
-@app.get("/commands", summary="List available commands")
-async def list_commands(bot: TaxChatbot = Depends(get_chatbot)) -> Dict[str, Any]:
-    """Get a list of all available user commands."""
-    try:
-        commands = bot.list_available_commands()
-        
-        return {
-            "commands": commands,
-            "count": len(commands),
-            "status": "success"
-        }
-        
-    except Exception as e:
-        logger.error(f"Error listing commands: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error listing commands: {str(e)}"
-        )
+## Commands endpoint removed: conversational intents handled by LLM
 
 
 # Admin endpoints (could be protected with authentication in production)

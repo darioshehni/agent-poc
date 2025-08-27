@@ -154,48 +154,4 @@ class MockLLMClient(LLMClient):
         return result
 
 
-class ToolExecutor:
-    """Handles tool execution with proper error handling and logging."""
-    
-    def __init__(self, registry):
-        self.registry = registry
-    
-    def execute_function_call(self, function_name: str, arguments: Dict[str, Any]) -> str:
-        """
-        Execute a function call from OpenAI and return result as JSON string.
-        This is the interface between OpenAI function calling and our tool system.
-        """
-        try:
-            # Parse arguments if they're a JSON string
-            if isinstance(arguments, str):
-                arguments = json.loads(arguments)
-            
-            # Execute the tool
-            result = self.registry.execute_tool(function_name, **arguments)
-            
-            if result.success:
-                # For successful results, return JSON with data and metadata
-                response = {
-                    "success": True,
-                    "data": result.data,
-                    "metadata": result.metadata
-                }
-                return json.dumps(response, ensure_ascii=False)
-            else:
-                # For failed results, return error information
-                response = {
-                    "success": False,
-                    "error": result.error_message,
-                    "data": None
-                }
-                return json.dumps(response, ensure_ascii=False)
-                
-        except json.JSONDecodeError as e:
-            error_msg = f"Invalid JSON arguments for {function_name}: {str(e)}"
-            logger.error(error_msg)
-            return json.dumps({"success": False, "error": error_msg}, ensure_ascii=False)
-            
-        except Exception as e:
-            error_msg = f"Unexpected error executing {function_name}: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            return json.dumps({"success": False, "error": error_msg}, ensure_ascii=False)
+# Legacy ToolExecutor removed; tools are executed via ToolManager in src/base.py

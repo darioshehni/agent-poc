@@ -1,0 +1,138 @@
+{
+  "session_id": "term-d4f49965",
+  "created_at": "2025-08-27T15:56:11.488034",
+  "updated_at": "2025-08-27T15:56:36.581897",
+  "state": "active",
+  "current_question": "ja",
+  "dossier": {
+    "legislation": [
+      {
+        "id": "LEG-3e425945",
+        "title": "Wet op de vennootschapsbelasting 1969, artikel 13",
+        "law": "Wet VPB",
+        "article": "artikel 13",
+        "content": "Wet op de vennootschapsbelasting 1969, artikel 13:\nDe deelnemingsvrijstelling is een belangrijke fiscale regeling in de Nederlandse vennootschapsbelasting.\nKort gezegd betekent het dat een bedrijf (bijvoorbeeld een BV of NV) geen belasting hoeft te betalen over winst (dividenden of verkoopwinsten) die het ontvangt uit een kwalificerende deelneming. Zo wordt dubbele belasting voorkomen: de winst is namelijk al belast bij de dochtermaatschappij die de winst maakte.\nVoorwaarden deelnemingsvrijstelling\nDe deelnemingsvrijstelling geldt meestal als:\nAandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in de dochtermaatschappij.\n",
+        "citation": "Wet VPB 1969 art. 13",
+        "url": null
+      },
+      {
+        "id": "LEG-709b5b41",
+        "title": "Wet op de omzetbelasting 1968, artikel 2",
+        "law": "Wet OB",
+        "article": "artikel 2",
+        "content": "Wet op de omzetbelasting 1968, artikel 2: het btw-tarief op goederen is 21%",
+        "citation": "Wet OB 1968 art. 2",
+        "url": null
+      },
+      {
+        "id": "LEG-3e425945",
+        "title": "Wet op de vennootschapsbelasting 1969, artikel 13",
+        "law": "Wet VPB",
+        "article": "artikel 13",
+        "content": "Wet op de vennootschapsbelasting 1969, artikel 13:\nDe deelnemingsvrijstelling is een belangrijke fiscale regeling in de Nederlandse vennootschapsbelasting.\nKort gezegd betekent het dat een bedrijf (bijvoorbeeld een BV of NV) geen belasting hoeft te betalen over winst (dividenden of verkoopwinsten) die het ontvangt uit een kwalificerende deelneming. Zo wordt dubbele belasting voorkomen: de winst is namelijk al belast bij de dochtermaatschappij die de winst maakte.\nVoorwaarden deelnemingsvrijstelling\nDe deelnemingsvrijstelling geldt meestal als:\nAandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in de dochtermaatschappij.\n",
+        "citation": "Wet VPB 1969 art. 13",
+        "url": null
+      },
+      {
+        "id": "LEG-709b5b41",
+        "title": "Wet op de omzetbelasting 1968, artikel 2",
+        "law": "Wet OB",
+        "article": "artikel 2",
+        "content": "Wet op de omzetbelasting 1968, artikel 2: het btw-tarief op goederen is 21%",
+        "citation": "Wet OB 1968 art. 2",
+        "url": null
+      }
+    ],
+    "case_law": [
+      {
+        "id": "CAS-15fdd2a7",
+        "title": "Hoge Raad ECLI:NL:HR:2020:123",
+        "court": "Hoge Raad",
+        "ecli": "ECLI:NL:HR:2020:123",
+        "content": "Uitspraak Hoge Raad ECLI:NL:HR:2020:123: Op tandpasta wordt vrijgesteld van btw, omdat het geclassificeerd wordt als medicijn.",
+        "date": "2020-01-15",
+        "url": null
+      },
+      {
+        "id": "CAS-bc0211f7",
+        "title": "Rechtbank Amsterdam ECLI:NL:RBAMS:2021:456",
+        "court": "Rechtbank Amsterdam",
+        "ecli": "ECLI:NL:RBAMS:2021:456",
+        "content": "Rechtbank Amsterdam: Er is alleen sprake van deelnemingsvrijstelling als de deelneming wordt gehouden met een zakelijk motief en niet alleen om te beleggen.",
+        "date": "2021-03-10",
+        "url": null
+      },
+      {
+        "id": "CAS-15fdd2a7",
+        "title": "Hoge Raad ECLI:NL:HR:2020:123",
+        "court": "Hoge Raad",
+        "ecli": "ECLI:NL:HR:2020:123",
+        "content": "Uitspraak Hoge Raad ECLI:NL:HR:2020:123: Op tandpasta wordt vrijgesteld van btw, omdat het geclassificeerd wordt als medicijn.",
+        "date": "2020-01-15",
+        "url": null
+      },
+      {
+        "id": "CAS-bc0211f7",
+        "title": "Rechtbank Amsterdam ECLI:NL:RBAMS:2021:456",
+        "court": "Rechtbank Amsterdam",
+        "ecli": "ECLI:NL:RBAMS:2021:456",
+        "content": "Rechtbank Amsterdam: Er is alleen sprake van deelnemingsvrijstelling als de deelneming wordt gehouden met een zakelijk motief en niet alleen om te beleggen.",
+        "date": "2021-03-10",
+        "url": null
+      }
+    ],
+    "selected_ids": [
+      "LEG-3e425945",
+      "LEG-709b5b41",
+      "CAS-15fdd2a7",
+      "CAS-bc0211f7"
+    ]
+  },
+  "conversation_history": [
+    {
+      "role": "user",
+      "content": "hallo",
+      "timestamp": "2025-08-27T15:56:11.488068"
+    },
+    {
+      "role": "assistant",
+      "content": "Hallo! Hoe kan ik je helpen vandaag? Heb je vragen over belastingen of iets anders?",
+      "timestamp": "2025-08-27T15:56:12.914033"
+    },
+    {
+      "role": "user",
+      "content": "wat kan je doen?",
+      "timestamp": "2025-08-27T15:56:15.325561"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik kan je helpen met vragen over belastingen, zoals BTW, inkomstenbelasting, vennootschapsbelasting, loonheffing, aftrekposten, tarieven en vrijstellingen. Ook kan ik uitleg geven over belastingprocedures en relevante wetgeving of jurisprudentie opzoeken. \n\nAls je een specifieke vraag hebt, laat het me weten!",
+      "timestamp": "2025-08-27T15:56:17.228371"
+    },
+    {
+      "role": "user",
+      "content": "welke taal spreek je?",
+      "timestamp": "2025-08-27T15:56:24.268567"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik spreek Nederlands. Als je vragen hebt, kun je die gerust in het Nederlands stellen!",
+      "timestamp": "2025-08-27T15:56:25.932173"
+    },
+    {
+      "role": "user",
+      "content": "wat is vpb tarief?",
+      "timestamp": "2025-08-27T15:56:28.229857"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende bronnen:\n\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2\n3. Hoge Raad ECLI:NL:HR:2020:123\n4. Rechtbank Amsterdam ECLI:NL:RBAMS:2021:456\n\nZijn deze bronnen correct voor uw vraag over het vennootschapsbelastingtarief?",
+      "timestamp": "2025-08-27T15:56:31.973724"
+    },
+    {
+      "role": "user",
+      "content": "ja",
+      "timestamp": "2025-08-27T15:56:34.875013"
+    }
+  ]
+}

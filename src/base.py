@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 import json
 import logging
+from dataclasses import is_dataclass, asdict
 
 logger = logging.getLogger(__name__)
 
@@ -150,22 +151,7 @@ class ToolManager:
             # Execute the tool
             result = self.execute_tool(function_name, **arguments)
             
-            if result.success:
-                # For successful results, return JSON with data and metadata
-                response = {
-                    "success": True,
-                    "data": result.data,
-                    "metadata": result.metadata
-                }
-                return json.dumps(response, ensure_ascii=False)
-            else:
-                # For failed results, return error information
-                response = {
-                    "success": False,
-                    "error": result.error_message,
-                    "data": None
-                }
-                return json.dumps(response, ensure_ascii=False)
+            return self.serialize_result_json(result)
                 
         except json.JSONDecodeError as e:
             error_msg = f"Invalid JSON arguments for {function_name}: {str(e)}"
@@ -176,6 +162,62 @@ class ToolManager:
             error_msg = f"Unexpected error executing {function_name}: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return json.dumps({"success": False, "error": error_msg}, ensure_ascii=False)
+
+    def _serialize_data(self, data: Any) -> Any:
+        """Convert tool result data to JSON-serializable form.
+        - Dataclasses with to_dict or dataclass instances are converted to dicts
+        - Lists are processed recursively
+        - Other types are returned as-is
+        """
+        if data is None:
+            return None
+        # Pydantic model
+        if hasattr(data, "model_dump") and callable(getattr(data, "model_dump")):
+            try:
+                return data.model_dump()
+            except Exception:
+                pass
+        # Dataclass with custom to_dict
+        if hasattr(data, "to_dict") and callable(getattr(data, "to_dict")):
+            try:
+                return data.to_dict()
+            except Exception:
+                pass
+        # Generic dataclass
+        if is_dataclass(data):
+            return asdict(data)
+        # List/tuple
+        if isinstance(data, (list, tuple)):
+            return [self._serialize_data(x) for x in data]
+        # Dict
+        if isinstance(data, dict):
+            return {k: self._serialize_data(v) for k, v in data.items()}
+        # Fallback
+        return data
+
+    def serialize_result(self, result: ToolResult) -> Dict[str, Any]:
+        """Serialize ToolResult to a JSON-safe dict."""
+        if result.success:
+            return {
+                "success": True,
+                "data": self._serialize_data(result.data),
+                "metadata": self._serialize_data(result.metadata or {}),
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.error_message,
+                "data": None,
+            }
+
+    def serialize_result_json(self, result: ToolResult) -> str:
+        """Serialize ToolResult to a JSON string."""
+        try:
+            return json.dumps(self.serialize_result(result), ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Failed to serialize ToolResult: {e}")
+            # Fallback minimal error payload
+            return json.dumps({"success": False, "error": "serialization_error"}, ensure_ascii=False)
     
     def validate_tools(self) -> List[str]:
         """Validate all registered tools. Returns list of validation errors."""
@@ -203,6 +245,3 @@ class ToolManager:
         
         return errors
 
-
-# Keep old class name as alias for backward compatibility
-ToolRegistry = ToolManager
