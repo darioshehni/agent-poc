@@ -5,18 +5,11 @@ Base classes and core components for the tax chatbot.
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
-from enum import Enum
 import json
 import logging
 from dataclasses import is_dataclass, asdict
 
 logger = logging.getLogger(__name__)
-
-
-class WorkflowState(Enum):
-    """Simple states for conversation workflow."""
-    IDLE = "idle"
-    ACTIVE = "active"  # Simplified: either idle or actively working
 
 
 @dataclass
@@ -26,6 +19,7 @@ class ToolResult:
     data: Any
     error_message: str = ""
     metadata: Dict[str, Any] = None
+    message: str = ""
     
     def __post_init__(self):
         if self.metadata is None:
@@ -54,8 +48,8 @@ class BaseTool(ABC):
         pass
     
     @abstractmethod
-    def execute(self, **kwargs) -> ToolResult:
-        """Execute the tool with given parameters."""
+    async def execute(self, **kwargs) -> ToolResult:
+        """Execute the tool with given parameters (async)."""
         pass
     
     def to_function_schema(self) -> Dict[str, Any]:
@@ -76,7 +70,7 @@ class LLMClient(ABC):
     @abstractmethod
     def chat_completion(
         self, 
-        messages: List[Dict[str, str]], 
+        conversation: List[Dict[str, str]],
         tools: List[Dict[str, Any]] = None,
         **kwargs
     ) -> Dict[str, Any]:
@@ -113,8 +107,8 @@ class ToolManager:
         """Get OpenAI function schemas for all tools."""
         return [tool.to_function_schema() for tool in self._tools.values()]
     
-    def execute_tool(self, tool_name: str, **kwargs) -> ToolResult:
-        """Execute a tool with given parameters."""
+    async def execute_tool(self, tool_name: str, **kwargs) -> ToolResult:
+        """Execute a tool with given parameters (async)."""
         tool = self._tools.get(tool_name)
         
         if not tool:
@@ -126,7 +120,7 @@ class ToolManager:
         
         try:
             logger.debug(f"Executing tool {tool_name} with args: {kwargs}")
-            result = tool.execute(**kwargs)
+            result = await tool.execute(**kwargs)
             logger.debug(f"Tool {tool_name} completed successfully")
             return result
             
@@ -202,6 +196,7 @@ class ToolManager:
                 "success": True,
                 "data": self._serialize_data(result.data),
                 "metadata": self._serialize_data(result.metadata or {}),
+                "message": result.message or "",
             }
         else:
             return {
@@ -244,4 +239,3 @@ class ToolManager:
                 errors.append(f"Tool {tool_name}: validation error - {str(e)}")
         
         return errors
-

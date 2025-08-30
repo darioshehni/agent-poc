@@ -1,157 +1,104 @@
 """
-LLM client implementations for the tax chatbot.
+Async LLM client used across the codebase (prompt formatting + OpenAI calls).
 """
 
 import os
-import json
-from typing import Dict, List, Any
 import logging
+from typing import Any, Dict, List, Optional, Type
 
-from openai import OpenAI
+from dotenv import load_dotenv
+from openai import AsyncOpenAI
+from pydantic import BaseModel
 
-try:
-    from .base import LLMClient
-except ImportError:
-    from base import LLMClient
-
-logger = logging.getLogger(__name__)
+load_dotenv()
 
 
-class OpenAIClient(LLMClient):
-    """OpenAI client implementation."""
-    
-    def __init__(self, api_key: str = None, model: str = "gpt-4o-mini"):
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
-        self.model = model
-        self._client = None
-        
-        if not self.api_key:
-            raise ValueError("OpenAI API key is required")
-    
-    def _get_client(self) -> OpenAI:
-        """Lazy initialization of OpenAI client."""
-        if not self._client:
-            self._client = OpenAI(api_key=self.api_key)
-        return self._client
-    
-    def chat_completion(
-        self, 
-        messages: List[Dict[str, str]], 
-        tools: List[Dict[str, Any]] = None,
-        temperature: float = 0.0,
-        max_tokens: int = 2000,
-        **kwargs
-    ) -> Dict[str, Any]:
-        """Generate a chat completion using OpenAI API."""
-        
-        client = self._get_client()
-        
-        # Prepare request parameters
-        request_params = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            **kwargs
-        }
-        
-        # Add tools if provided
-        if tools:
-            request_params["tools"] = tools
-            request_params["tool_choice"] = "auto"
-        
+class LlmAnswer(BaseModel):
+    """Unified LLM answer wrapper returned by LlmChat.chat.
+
+    - answer: string form of the model output.
+    - tool_calls: names of tools the model decided to call in this turn.
+    """
+    answer: str
+    tool_calls: List[str] = []
+
+
+class LlmChat:
+    """Handle LLM interaction: prompt formatting, chat (tools/structured)."""
+
+    def __init__(self, logger_: Optional[logging.Logger] = None) -> None:
+        self.logger = logger_ or logging.getLogger(__name__)
+        self._openai_client = self._get_openai_client()
+
+    def _get_openai_client(self) -> AsyncOpenAI:
+        """Initialize and return AsyncOpenAI client."""
         try:
-            logger.debug(f"Making OpenAI request with {len(messages)} messages")
-            
-            response = client.chat.completions.create(**request_params)
-            
-            # Convert response to dict format
-            result = {
-                "choices": [
-                    {
-                        "message": {
-                            "role": response.choices[0].message.role,
-                            "content": response.choices[0].message.content,
-                        }
-                    }
-                ],
-                "usage": {
-                    "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-                    "completion_tokens": response.usage.completion_tokens if response.usage else 0,
-                    "total_tokens": response.usage.total_tokens if response.usage else 0,
-                }
-            }
-            
-            # Add tool calls if present
-            if response.choices[0].message.tool_calls:
-                result["choices"][0]["message"]["tool_calls"] = [
-                    {
-                        "id": tc.id,
-                        "type": tc.type,
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments
-                        }
-                    }
-                    for tc in response.choices[0].message.tool_calls
-                ]
-            
-            logger.debug(f"OpenAI request completed successfully")
-            return result
-            
+            api_key = os.environ["OPENAI_API_KEY"]
+            return AsyncOpenAI(api_key=api_key)
         except Exception as e:
-            logger.error(f"OpenAI API error: {str(e)}", exc_info=True)
+            self.logger.error(f"Error initializing OpenAI client: {e}")
             raise
 
+    @staticmethod
+    def fill_prompt_template(prompt_template: str, prompt_kwargs: Dict[str, str]) -> str:
+        """Fill placeholders like {name} with values from prompt_kwargs."""
+        for key, value in prompt_kwargs.items():
+            prompt_template = prompt_template.replace(f"{{{key}}}", value)
+        return prompt_template
 
-class MockLLMClient(LLMClient):
-    """Mock LLM client for testing."""
-    
-    def __init__(self, responses: List[str] = None):
-        self.responses = responses or ["Mock response"]
-        self.call_count = 0
-    
-    def chat_completion(
-        self, 
-        messages: List[Dict[str, str]], 
-        tools: List[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
-        """Return a mock response."""
-        
-        response_text = self.responses[self.call_count % len(self.responses)]
-        self.call_count += 1
-        
-        result = {
-            "choices": [
-                {
-                    "message": {
-                        "role": "assistant",
-                        "content": response_text
-                    }
-                }
-            ],
-            "usage": {
-                "prompt_tokens": 10,
-                "completion_tokens": 10,
-                "total_tokens": 20
-            }
+    async def chat(
+        self,
+        messages: List[Dict[str, Any]] | str,
+        model_name: str,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: Optional[str] = "auto",
+        temperature: float = 0.0,
+        **kwargs: Any,
+    ) -> LlmAnswer:
+        """Chat; `messages` may be a full list or a single user string."""
+
+        # Accept a single string or a full message list
+        if isinstance(messages, str):
+            messages = [{"role": "user", "content": messages}]
+        if not isinstance(messages, list) or not messages:
+            raise ValueError("messages must be a non-empty list or a string")
+
+        params: Dict[str, Any] = {
+            "model": model_name,
+            "messages": messages,
+            "temperature": temperature,
+            **kwargs,
         }
-        
-        # Mock tool calls if tools are provided
-        if tools and "get_legislation" in response_text:
-            result["choices"][0]["message"]["tool_calls"] = [
-                {
-                    "id": "mock_call_1",
-                    "type": "function",
-                    "function": {
-                        "name": "get_legislation",
-                        "arguments": '{"query": "mock query"}'
-                    }
-                }
-            ]
-        
-        return result
+        if tools:
+            params["tools"] = tools
+            if tool_choice is not None:
+                params["tool_choice"] = tool_choice
 
+        try:
+            resp = await self._openai_client.chat.completions.create(**params)
+            msg = resp.choices[0].message
+            tool_calls = [tc.function.name for tc in (msg.tool_calls or [])]
+            return LlmAnswer(answer=msg.content or "", tool_calls=tool_calls)
+        except Exception as e:
+            self.logger.error(f"Chat completion failed: {e}")
+            raise
 
-# Legacy ToolExecutor removed; tools are executed via ToolManager in src/base.py
+    async def chat_structured(
+        self,
+        messages: List[Dict[str, Any]] | str,
+        model_name: str,
+        response_format: Type[BaseModel],
+    ) -> BaseModel:
+        """Structured call that returns a parsed Pydantic model (no tools)."""
+        try:
+            if isinstance(messages, str):
+                messages = [{"role": "user", "content": messages}]
+            resp = await self._openai_client.responses.parse(  # type: ignore[attr-defined]
+                model=model_name,
+                input=messages,
+                text_format=response_format,
+            )
+            return resp.output_parsed
+        except Exception as e:
+            self.logger.error(f"Structured chat parse failed: {e}")
+            raise

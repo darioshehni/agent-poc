@@ -1,17 +1,14 @@
 """
 Case law retrieval tool with clean architecture.
-Returns CaseLaw Pydantic models so each source has a stable ID and title.
+Updates the dossier (when provided) and returns an assistant message.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Callable
 import logging
 
-try:
-    from ..base import BaseTool, ToolResult
-    from ..models import CaseLaw
-except ImportError:
-    from base import BaseTool, ToolResult
-    from models import CaseLaw
+from src.base import BaseTool, ToolResult
+from src.models import CaseLaw
+from src.sessions import SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -19,30 +16,26 @@ logger = logging.getLogger(__name__)
 class CaseLawTool(BaseTool):
     """Tool for retrieving relevant Dutch tax case law and jurisprudence."""
     
-    def __init__(self):
+    def __init__(self, session_manager: SessionManager | None = None, dossier_id_getter: Callable[[], str] | None = None):
         # Sample case law data (Pydantic models)
         self._sample_case_law: List[CaseLaw] = [
             CaseLaw(
-                title="Hoge Raad ECLI:NL:HR:2020:123",
-                court="Hoge Raad",
-                ecli="ECLI:NL:HR:2020:123",
-                date="2020-01-15",
+                title="ECLI:NL:HR:2020:123",
                 content=(
                     "Uitspraak Hoge Raad ECLI:NL:HR:2020:123: Op tandpasta wordt vrijgesteld van btw, "
                     "omdat het geclassificeerd wordt als medicijn."
                 ),
             ),
             CaseLaw(
-                title="Rechtbank Amsterdam ECLI:NL:RBAMS:2021:456",
-                court="Rechtbank Amsterdam",
-                ecli="ECLI:NL:RBAMS:2021:456",
-                date="2021-03-10",
+                title="ECLI:NL:RBAMS:2021:456",
                 content=(
                     "Rechtbank Amsterdam: Er is alleen sprake van deelnemingsvrijstelling als de deelneming "
                     "wordt gehouden met een zakelijk motief en niet alleen om te beleggen."
                 ),
             ),
         ]
+        self.session_manager = session_manager
+        self.dossier_id_getter = dossier_id_getter or (lambda: "default")
     
     @property
     def name(self) -> str:
@@ -65,7 +58,7 @@ class CaseLawTool(BaseTool):
             "required": ["query"]
         }
     
-    def execute(self, query: str) -> ToolResult:
+    async def execute(self, query: str) -> ToolResult:
         """
         Retrieve case law based on the query.
         
@@ -88,7 +81,28 @@ class CaseLawTool(BaseTool):
                     error_message="Geen relevante jurisprudentie gevonden voor deze vraag."
                 )
 
-            titles = [c.title for c in relevant_cases]
+            # Update dossier if session manager provided
+            applied = False
+            try:
+                if self.session_manager is not None:
+                    dos = self.session_manager.get_dossier(self.dossier_id_getter())
+                    if dos is not None:
+                        dos.add_case_law(relevant_cases)
+                        for it in relevant_cases:
+                            t = (it.title or "").strip()
+                            if t and t not in dos.selected_ids:
+                                dos.selected_ids.append(t)
+                        applied = True
+            except Exception:
+                applied = False
+
+            titles = [c.title for c in relevant_cases if (c.title or '').strip()]
+            lines = ["Ik vond de volgende bronnen:"]
+            for i, t in enumerate(titles, 1):
+                lines.append(f"{i}. {t}")
+            lines.append("Zijn deze bronnen correct voor uw vraag?")
+            assistant_msg = "\n".join(lines)
+
             result = ToolResult(
                 success=True,
                 data=relevant_cases,
@@ -96,9 +110,10 @@ class CaseLawTool(BaseTool):
                     "source_names": titles,
                     "query": query,
                     "result_count": len(relevant_cases),
-                    "courts": [c.court for c in relevant_cases],
-                    "search_method": "keyword_matching",  # Demo
-                }
+                    "search_method": "keyword_matching",
+                    "dossier_updated": applied,
+                },
+                message=assistant_msg,
             )
 
             logger.info(f"Found {len(relevant_cases)} case law items")

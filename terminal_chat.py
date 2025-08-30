@@ -1,95 +1,104 @@
 #!/usr/bin/env python3
 """
-Terminal interface for the Tax Chatbot.
-Run this file to interact with the agent through your terminal.
+Terminal WebSocket client for the Tax Chatbot.
+
+Connects to the API WebSocket, sends one message per connection, receives the
+response, and prints it. The server handles dossier updates and persistence.
 
 Usage:
-    python terminal_chat.py                    # Start the original implementation
+    python terminal_chat.py --dossier <optional_dossier_id>
+
+Environment:
+    TAX_WS_URL (default: ws://localhost:8000/ws)
 """
 
-import sys
 import os
 import argparse
 import uuid
+import asyncio
+import json
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-
-def get_chatbot(session_id: str):
-    """Initialize the original chatbot implementation."""
-    # Add original src to path
-    src_path = Path(__file__).parent / "src"
-    sys.path.insert(0, str(src_path))
-
-    from agent import TaxChatbot
-    from llm import OpenAIClient
-
-    llm_client = OpenAIClient()
-    return TaxChatbot(llm_client=llm_client, session_id=session_id)
+try:
+    import websockets
+except ImportError:
+    raise SystemExit("The 'websockets' package is required. Install with: pip install websockets")
 
 
-def main():
-    """Main terminal interface."""
+async def send_ws_message(url: str, message: str, dossier_id: str) -> dict:
+    async with websockets.connect(url) as ws:
+        await ws.send(json.dumps({"message": message, "dossier_id": dossier_id}))
+        raw = await ws.recv()
+        return json.loads(raw)
+
+
+async def main():
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Tax Chatbot")
+    parser = argparse.ArgumentParser(description="Tax Chatbot (WebSocket client)")
     parser.add_argument(
-        "--session",
+        "--dossier",
         default="",
-        help="Optional session ID to resume or share. If omitted, a new one is generated."
+        help="Optional dossier ID to resume or share. If omitted, a new one is generated."
+    )
+    parser.add_argument(
+        "--url",
+        default=os.getenv("TAX_WS_URL", "ws://localhost:8000/ws"),
+        help="WebSocket URL (default: ws://localhost:8000/ws)"
     )
     args = parser.parse_args()
-    
-    try:
-        # Resolve session id
-        session_id = args.session.strip()
-        if not session_id:
-            session_id = f"term-{uuid.uuid4().hex[:8]}"
-            # Store last terminal session id
-            try:
-                base = Path("data/sessions")
-                base.mkdir(parents=True, exist_ok=True)
-                (base / "terminal_last.json").write_text(session_id, encoding="utf-8")
-            except Exception:
-                pass
 
-        chatbot = get_chatbot(session_id)
+    # Resolve session id
+    dossier_id = args.dossier.strip()
+    if not dossier_id:
+        dossier_id = f"dos-{uuid.uuid4().hex[:8]}"
+        # Store last terminal session id (optional)
+        try:
+            base = Path("data/sessions")
+            base.mkdir(parents=True, exist_ok=True)
+            (base / "terminal_last.json").write_text(dossier_id, encoding="utf-8")
+        except Exception:
+            pass
 
-    except Exception as e:
-        print(f"❌ Error initializing chatbot: {e}")
-        print("Make sure your OPENAI_API_KEY is set in .env file")
-    
     print("=" * 70)
-    print("🏛️  NEDERLANDSE BELASTING CHATBOT (ORIGINAL)")
+    print("🏛️  NEDERLANDSE BELASTING CHATBOT (WS)")
     print("=" * 70)
     print("Welkom! Ik kan u helpen met Nederlandse belastingvragen.")
     print("Type 'quit', 'exit', of 'stop' om te stoppen.")
-    # Commands removed; interact naturally with the agent.
-    print(f"Session ID: {session_id}")
+    print(f"Dossier ID: {dossier_id}")
+    print(f"WS URL: {args.url}")
     print("-" * 70)
-    
+
     while True:
         try:
             # Get user input
             user_input = input("\n💬 U: ").strip()
-            
+
             # Check for exit commands
-            if user_input.lower() in ['quit', 'exit', 'stop', 'bye']:
+            if user_input.lower() in ["quit", "exit", "stop", "bye"]:
                 print("\n👋 Bedankt voor het gebruiken van de belasting chatbot. Tot ziens!")
                 break
-            
-            # Skip empty input
+
             if not user_input:
                 continue
-            
-            # Process message
-            response = chatbot.process_message(user_input)
-            
+
+            # Send over WebSocket and receive one response
+            resp = await send_ws_message(args.url, user_input, dossier_id)
+
+            if resp.get("status") != "success":
+                print(f"\n❌ Fout: {resp.get('error') or 'onbekende fout'}")
+                continue
+
+            # Update dossier_id from server (in case it was generated there)
+            dossier_id = resp.get("dossier_id") or dossier_id
+
             # Display response
-            print(f"\n🤖 TESS: {response}")
-            
+            print(f"\n🤖 TESS: {resp.get('response', '')}")
+
         except KeyboardInterrupt:
             print("\n\n👋 Chatbot gestopt. Tot ziens!")
             break
@@ -99,4 +108,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

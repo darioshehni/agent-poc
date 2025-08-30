@@ -1,0 +1,29 @@
+{
+  "session_id": "term-900afc4c",
+  "created_at": "2025-08-29T15:10:08.583552",
+  "updated_at": "2025-08-29T15:10:17.910078",
+  "state": "idle",
+  "current_question": "wat is het btw tarief van tandpasta?",
+  "dossier": {
+    "legislation": [],
+    "case_law": [],
+    "selected_ids": []
+  },
+  "conversation_history": [
+    {
+      "role": "user",
+      "content": "hallo",
+      "timestamp": "2025-08-29T15:10:08.583603"
+    },
+    {
+      "role": "assistant",
+      "content": "Hallo! Hoe kan ik je helpen vandaag? Heb je vragen over belastingen of iets anders?",
+      "timestamp": "2025-08-29T15:10:10.399319"
+    },
+    {
+      "role": "user",
+      "content": "wat is het btw tarief van tandpasta?",
+      "timestamp": "2025-08-29T15:10:17.910013"
+    }
+  ]
+}

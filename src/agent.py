@@ -12,19 +12,18 @@ The agent now delegates prompt/context construction and tool-call execution to
 dedicated helpers so this file remains an orchestration layer.
 """
 
-import json
 import logging
 from typing import Dict, Any, List, Optional
 
-from base import WorkflowState, ToolManager
-from sessions import Conversation, SessionManager
-from llm import OpenAIClient, LLMClient
-from tools.legislation_tool import LegislationTool
-from tools.case_law_tool import CaseLawTool
-from tools.answer_tool import AnswerTool
-from tools.remove_sources_tool import RemoveSourcesTool
-from context import ContextBuilder
-from tool_calls import ToolCallHandler
+from src.base import ToolManager
+from src.sessions import SessionManager
+from src.llm import LlmChat
+from src.tools.legislation_tool import LegislationTool
+from src.tools.case_law_tool import CaseLawTool
+from src.tools.answer_tool import AnswerTool
+from src.tools.remove_sources_tool import RemoveSourcesTool
+from src.context import ContextBuilder
+from src.tool_calls import ToolCallHandler
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -35,7 +34,7 @@ class TaxChatbot:
     """Orchestrates chat between the user, tools, and the LLM.
 
     Responsibilities:
-    - Maintain per-session state via SessionManager
+    - Maintain per-dossier state via SessionManager
     - Issue LLM calls with function-calling tools available
     - Delegate tool-call execution and context construction to helpers
     - Return the assistant's final response as a string
@@ -43,31 +42,32 @@ class TaxChatbot:
     
     def __init__(
         self,
-        llm_client: LLMClient = None,
-        session_id: str = "default"
+        llm_client: Optional[LlmChat] = None,
+        dossier_id: str = "default",
+        model_name: str = "gpt-4o-mini",
     ):
         """
         Initialize the chatbot with clean architecture components.
         
         Args:
-            llm_client: Optional custom LLM client
-            session_id: Session identifier for multi-user support
+            dossier_id: Identifier for this dossier
         """
         
         # Core components
-        self.llm_client = llm_client or OpenAIClient()
+        self.llm_client = llm_client or LlmChat()
         self.session_manager = SessionManager()
         self.tool_manager = ToolManager()
         self.context_builder = ContextBuilder()
         self.tool_call_handler = ToolCallHandler(self.tool_manager)
+        self.model_name = model_name
         
         # Current session
-        self.session_id = session_id
+        self.dossier_id = dossier_id
         
         # Initialize system
         self._setup_tools()
         
-        logger.info(f"TaxChatbot initialized for session: {session_id}")
+        logger.info(f"TaxChatbot initialized for dossier: {dossier_id}")
     
     def _setup_tools(self) -> None:
         """Register all available tools."""
@@ -76,17 +76,25 @@ class TaxChatbot:
         answer_tool = AnswerTool(
             llm_client=self.llm_client,
             session_manager=self.session_manager,
-            session_id_getter=lambda: self.session_id,
+            dossier_id_getter=lambda: self.dossier_id,
+            model_name_getter=lambda: self.model_name,
         )
         remove_tool = RemoveSourcesTool(
             llm_client=self.llm_client,
             session_manager=self.session_manager,
-            session_id_getter=lambda: self.session_id,
+            dossier_id_getter=lambda: self.dossier_id,
+            model_name_getter=lambda: self.model_name,
         )
         
-        # Register tools
-        self.tool_manager.register(LegislationTool())
-        self.tool_manager.register(CaseLawTool())
+        # Register tools (pass session for dossier updates and unified messaging)
+        self.tool_manager.register(LegislationTool(
+            session_manager=self.session_manager,
+            dossier_id_getter=lambda: self.dossier_id,
+        ))
+        self.tool_manager.register(CaseLawTool(
+            session_manager=self.session_manager,
+            dossier_id_getter=lambda: self.dossier_id,
+        ))
         self.tool_manager.register(answer_tool)
         self.tool_manager.register(remove_tool)
         
@@ -98,12 +106,12 @@ class TaxChatbot:
         logger.info(f"Registered {len(self.tool_manager.list_tools())} tools")
     
     
-    def process_message(self, user_input: str) -> str:
+    async def process_message(self, user_input: str) -> str:
         """
         Main entry point for processing user messages.
         
         This method:
-        1. Gets or creates user session
+        1. Gets or creates dossier
         2. Checks for commands first
         3. Processes with AI if not a command
         4. Updates workflow state
@@ -111,24 +119,20 @@ class TaxChatbot:
         """
         
         try:
-            # Get session
-            session = self.session_manager.get_or_create_session(self.session_id)
+            # Get dossier
+            dossier = self.session_manager.get_or_create_dossier(self.dossier_id)
             
-            # Add user message to history
-            session.add_message("user", user_input)
-            # Track the current question for downstream tools unless it's a short confirmation
-            if not self._is_confirmation(user_input):
-                session.current_question = user_input
+            # Add user message to curated dossier conversation
+            dossier.add_conversation_user(user_input)
             
-            logger.info(f"Processing message for session {self.session_id}: {user_input[:50]}...")
+            logger.info(f"Processing message for dossier {self.dossier_id}: {user_input[:50]}...")
             
-            # No need for explicit confirmation handling - LLM handles it via context
-            
+
             # Process with AI
-            response = self._process_with_ai(session)
+            response = await self._process_with_ai(dossier)
             
-            # Add response to history
-            session.add_message("assistant", response)
+            # Add response to curated dossier conversation
+            dossier.add_conversation_assistant(response)
             
             return response
             
@@ -136,57 +140,54 @@ class TaxChatbot:
             logger.error(f"Error processing message: {str(e)}", exc_info=True)
             return f"Er is een onverwachte fout opgetreden: {str(e)}. Probeer het opnieuw."
     
-    def _process_with_ai(self, session: Conversation) -> str:
+    async def _process_with_ai(self, dossier) -> str:
         """Process one user turn using LLM + tools, returning assistant text."""
 
         # Build system prompt
-        system_prompt = self.context_builder.build_system_prompt(session)
+        system_prompt = self.context_builder.build_system_prompt(dossier)
         
-        # Prepare conversation messages
-        messages = [
+        # Prepare user-visible conversation (curated) from dossier
+        conversation = [
             {"role": "system", "content": system_prompt}
         ]
-        
-        # Add recent conversation history (last 10 messages)
-        recent_history = session.conversation_history[-10:]
-        for msg in recent_history:
-            messages.append({
-                "role": msg["role"],
-                "content": msg["content"]
-            })
+        # Only include curated user-visible messages
+        for msg in dossier.conversation:
+            if isinstance(msg, dict) and "role" in msg and "content" in msg:
+                conversation.append({"role": msg["role"], "content": msg["content"]})
         
         # Get available tools
         tools = self.tool_manager.get_function_schemas()
         
         try:
             # Make initial AI request
-            response = self.llm_client.chat_completion(
-                messages=messages,
+            llm_answer = await self.llm_client.chat(
+                messages=conversation,
+                model_name=self.model_name,
                 tools=tools,
-                temperature=0.0
+                temperature=0.0,
             )
-            
-            response_message = response["choices"][0]["message"]
+            response_message = {"content": llm_answer.answer, "tool_calls": llm_answer.tool_calls}
             
             # Handle function calls
-            if "tool_calls" in response_message:
-                # Execute tool calls, update session, extend messages
-                self.tool_call_handler.handle(session, messages, response_message)
+            if response_message["tool_calls"]:
+                # Execute tool calls, update dossier, extend conversation
+                await self.tool_call_handler.handle(dossier, conversation, response_message)
                 # Persist dossier snapshot (best-effort)
                 try:
-                    self.session_manager.save_session(session)
+                    self.session_manager.save_dossier(dossier)
                 except Exception:
                     pass
 
-                # Refresh system prompt with updated session context
-                messages[0]["content"] = self.context_builder.build_system_prompt(session)
+                # Refresh system prompt with updated dossier context
+                conversation[0]["content"] = self.context_builder.build_system_prompt(dossier)
 
                 # Get final response from the LLM
-                final_response = self.llm_client.chat_completion(
-                    messages=messages,
-                    temperature=0.0
+                final_answer = await self.llm_client.chat(
+                    messages=conversation,
+                    model_name=self.model_name,
+                    temperature=0.0,
                 )
-                final_content = final_response["choices"][0]["message"].get("content")
+                final_content = final_answer.answer
                 return final_content or "Ik kon geen antwoord genereren op basis van de beschikbare informatie."
             else:
                 # Direct response without function calls
@@ -199,71 +200,41 @@ class TaxChatbot:
     # Context building and tool-call execution are delegated to helpers
     
     
-    def get_session_info(self) -> Dict[str, Any]:
-        """Get information about the current session."""
-        session = self.session_manager.get_session(self.session_id)
-        if not session:
+    def get_dossier_info(self) -> Dict[str, Any]:
+        """Get information about the current dossier."""
+        dossier = self.session_manager.get_dossier(self.dossier_id)
+        if not dossier:
             return {"error": "No active session"}
         
         info = {
-            "session_id": session.session_id,
-            "state": session.state.value,
-            "question": session.current_question,
-            "sources": session.get_source_summary(),
-            "message_count": len(session.conversation_history),
-            "created_at": session.created_at.isoformat(),
-            "updated_at": session.updated_at.isoformat(),
+            "dossier_id": dossier.dossier_id,
+            "message_count": len(dossier.conversation),
+            "created_at": dossier.created_at.isoformat(),
+            "updated_at": dossier.updated_at.isoformat(),
         }
 
         # Add selected vs unselected titles for quick confirmation UIs
         try:
-            info["selected_titles"] = session.dossier.selected_titles()
-            info["unselected_titles"] = session.dossier.unselected_titles()
+            info["selected_titles"] = dossier.selected_titles()
+            info["unselected_titles"] = dossier.unselected_titles()
         except Exception:
             info["selected_titles"] = []
             info["unselected_titles"] = []
 
         return info
-    
-    def reset_session(self) -> str:
-        """Reset the current session."""
-        self.session_manager.delete_session(self.session_id)
-        logger.info(f"Reset session: {self.session_id}")
-        return "Sessie is gereset. U kunt een nieuwe vraag stellen."
-    
-    def add_tool(self, tool) -> None:
-        """Add a new tool to the manager."""
-        self.tool_manager.register(tool)
-        logger.info(f"Added tool: {tool.name}")
-    
+
+    def reset_dossier(self) -> str:
+        """Reset the current dossier."""
+        self.session_manager.delete_dossier(self.dossier_id)
+        logger.info(f"Reset dossier: {self.dossier_id}")
+        return "Dossier is gereset. U kunt een nieuwe vraag stellen."
+
     def list_available_tools(self) -> List[str]:
         """Get list of available tools."""
         return self.tool_manager.list_tools()
-    
-    # Commands removed: agent handles conversational intents via LLM
-    
+
     def cleanup_old_sessions(self, hours: int = 24) -> int:
         """Clean up old sessions."""
         removed = self.session_manager.cleanup_old_sessions(hours)
         logger.info(f"Cleaned up {removed} old sessions")
         return removed
-
-    # --- Internal helpers ---
-    def _is_confirmation(self, text: str) -> bool:
-        """Heuristic: detect short yes/no confirmations to avoid overwriting the question.
-
-        Returns True for inputs like 'ja', 'nee', 'yes', 'no', 'klopt', 'correct',
-        and short variants like 'ja, klopt'. This keeps the original tax question
-        intact across the confirm → answer phase.
-        """
-        t = (text or "").strip().lower()
-        if not t:
-            return False
-        keywords = {"ja", "nee", "yes", "no", "klopt", "correct"}
-        if t in keywords:
-            return True
-        # Short affirmations containing a keyword (<= 3 words)
-        words = [w.strip(",.!?") for w in t.split()]
-        if len(words) <= 3 and any(w in keywords for w in words):
-            return True
-        return False

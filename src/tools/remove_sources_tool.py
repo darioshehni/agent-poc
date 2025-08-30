@@ -1,30 +1,22 @@
 """
 Tool to map a natural user instruction (e.g., "remove article 13") to
-concrete dossier entries, returning a structured list of IDs to remove.
+concrete dossier entries, returning a structured list of titles to remove.
 
-This tool reads the current session's dossier (legislation and case law),
+This tool reads the current dossier (legislation and case law),
 presents short candidate names to the LLM along with the user's removal
-instruction, and asks for a strict JSON result listing the IDs to remove.
+instruction, and asks for a strict JSON result listing the titles to remove.
 
-The agent will then deterministically remove those IDs from the dossier.
+The agent will then deterministically unselect those titles from the dossier.
 """
 
-from typing import Dict, Any, List, Callable
+from typing import Dict, Any, Callable
 import json
 import logging
 
-try:
-    from ..base import BaseTool, ToolResult
-    from ..llm import OpenAIClient
-    from ..prompts import fill_prompt_template
-    from ..models import RemovalDecision
-    from ..sessions import SessionManager
-except ImportError:
-    from base import BaseTool, ToolResult
-    from llm import OpenAIClient
-    from prompts import fill_prompt_template
-    from models import RemovalDecision
-    from sessions import SessionManager
+
+from src.base import BaseTool, ToolResult
+from src.models import DocumentTitles
+from src.sessions import SessionManager
 
 
 logger = logging.getLogger(__name__)
@@ -36,38 +28,40 @@ en een gebruikersinstructie om bepaalde bron(nen) te verwijderen. Kies uitsluite
 de bronnen die het beste overeenkomen met de instructie. Geef als uitvoer STRIKT
 het volgende JSON-formaat, en niets anders:
 
-{
-  "remove_ids": ["ID1", "ID2", ...]
-}
+{"titles": ["Titel 1", "Titel 2", ...]}
 
-Waarbij elke ID exact overeenkomt met een ID in de kandidatenlijst hieronder.
+Waarbij elke ID exact overeenkomt met een titel in de kandidatenlijst hieronder
+(de titel fungeert als ID; gebruik de titeltekst exact zoals getoond).
 Geef GEEN toelichting buiten dit JSON.
 
 INSTRUCTIE:
 {instruction}
 
-KANDIDATEN (ID — Titel):
+KANDIDATEN (Titel; gebruik exact de titel als ID):
 {candidates}
 """
 
 
 class RemoveSourcesTool(BaseTool):
-    """Convert a removal instruction into a list of dossier source IDs to remove.
+    """Convert a removal instruction into a list of dossier source titles to unselect.
 
-    This tool presents concise candidate names from the session dossier to the
+    This tool presents concise candidate names from the dossier to the
     LLM so it can map user language (e.g., "verwijder artikel 13") to exact
-    entries. The agent applies the returned IDs to update the dossier.
+    entries. The agent applies the returned titles to update the dossier selection.
     """
 
     def __init__(
         self,
-        llm_client: OpenAIClient = None,
+        llm_client: Any = None,
         session_manager: 'SessionManager' = None,
-        session_id_getter: Callable[[], str] | None = None,
+        dossier_id_getter: Callable[[], str] | None = None,
+        model_name_getter: Callable[[], str] | None = None,
     ):
-        self.llm_client = llm_client or OpenAIClient()
+        # Expect an async LlmChat client
+        self.llm_client = llm_client
         self.session_manager = session_manager
-        self.session_id_getter = session_id_getter or (lambda: "default")
+        self.dossier_id_getter = dossier_id_getter or (lambda: "default")
+        self.model_name_getter = model_name_getter or (lambda: "gpt-4o-mini")
 
     @property
     def name(self) -> str:
@@ -75,7 +69,7 @@ class RemoveSourcesTool(BaseTool):
 
     @property
     def description(self) -> str:
-        return "Map a removal instruction to exact dossier source IDs to remove"
+        return "Map a removal instruction to exact dossier source titles to unselect"
 
     @property
     def parameters_schema(self) -> Dict[str, Any]:
@@ -90,22 +84,24 @@ class RemoveSourcesTool(BaseTool):
             "required": ["instruction"]
         }
 
-    def execute(self, instruction: str) -> ToolResult:
+    async def execute(self, instruction: str) -> ToolResult:
         try:
             if not instruction.strip():
                 return ToolResult(False, None, "Instruction cannot be empty")
 
-            # Build candidate list from dossier
+            # Build candidate list from dossier (titles act as IDs)
             candidates_display = []
             try:
-                session = None
+                dossier = None
                 if self.session_manager is not None:
-                    session = self.session_manager.get_session(self.session_id_getter())
-                if session and session.dossier:
-                    for l in session.dossier.legislation:
-                        candidates_display.append(f"{l.id} — {l.title or l.law or ''}")
-                    for c in session.dossier.case_law:
-                        candidates_display.append(f"{c.id} — {c.title or c.ecli or ''}")
+                    dossier = self.session_manager.get_dossier(self.dossier_id_getter())
+                if dossier:
+                    for l in dossier.legislation:
+                        if getattr(l, 'title', '').strip():
+                            candidates_display.append(l.title)
+                    for c in dossier.case_law:
+                        if getattr(c, 'title', '').strip():
+                            candidates_display.append(c.title)
             except Exception as e:
                 logger.warning(f"remove_sources: could not build candidates: {e}")
 
@@ -117,27 +113,33 @@ class RemoveSourcesTool(BaseTool):
                 candidates="\n".join(candidates_display)
             )
 
-            response = self.llm_client.chat_completion(
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.0,
-                max_tokens=500
+            # Ask the LLM to return structured titles list
+            parsed: DocumentTitles = await self.llm_client.chat_structured(
+                messages=prompt,
+                model_name=self.model_name_getter(),
+                response_format=DocumentTitles,
             )
 
-            text = response["choices"][0]["message"].get("content", "").strip()
-            # Attempt to parse strict JSON
-            try:
-                data = json.loads(text)
-                decision = RemovalDecision.model_validate(data)
-            except Exception as e:
-                logger.warning(f"remove_sources: JSON parse/validate issue: {e}; text={text[:200]}")
-                return ToolResult(False, None, "Invalid JSON returned for removal decision")
+            titles = list(parsed.titles or [])
+            if not titles:
+                return ToolResult(False, None, "No titles selected for removal")
 
-            return ToolResult(True, decision, metadata={
-                "prompt_tokens": response.get("usage", {}).get("prompt_tokens", 0),
-                "completion_tokens": response.get("usage", {}).get("completion_tokens", 0),
-            })
+            # Apply unselection directly to the dossier
+            removed_count = 0
+            try:
+                if self.session_manager is not None:
+                    dossier = self.session_manager.get_dossier(self.dossier_id_getter())
+                    if dossier:
+                        before_sel = list(dossier.selected_ids)
+                        dossier.selected_ids = [sid for sid in dossier.selected_ids if sid not in titles]
+                        removed_count = len(before_sel) - len(dossier.selected_ids)
+            except Exception as e:
+                logger.warning(f"remove_sources: failed to apply unselection: {e}")
+
+            message = "Ik heb de genoemde bronnen uit de selectie gehaald." if removed_count > 0 else "Er was geen overeenkomst met de huidige selectie."
+
+            return ToolResult(True, parsed, metadata={"dossier_updated": True, "removed_count": removed_count}, message=message)
 
         except Exception as e:
             logger.error(f"remove_sources tool failed: {e}")
             return ToolResult(False, None, f"remove_sources failed: {e}")
-

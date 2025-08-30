@@ -1,33 +1,27 @@
 """
 Legislation retrieval tool with clean architecture.
+Updates the dossier (when provided) and returns an assistant message.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Callable
 import logging
 
-try:
-    from ..base import BaseTool, ToolResult
-except ImportError:
-    from base import BaseTool, ToolResult
+from src.base import BaseTool, ToolResult
+from src.sessions import SessionManager
 
 logger = logging.getLogger(__name__)
 
-try:
-    from ..models import Legislation
-except ImportError:
-    from models import Legislation
+from src.models import Legislation
 
 
 class LegislationTool(BaseTool):
     """Tool for retrieving relevant Dutch tax legislation."""
     
-    def __init__(self):
+    def __init__(self, session_manager: SessionManager | None = None, dossier_id_getter: Callable[[], str] | None = None):
         # In a real implementation, this would connect to a database or search system
         self._sample_legislation: List[Legislation] = [
             Legislation(
                 title="Wet op de vennootschapsbelasting 1969, artikel 13",
-                law="Wet VPB",
-                article="artikel 13",
                 content=(
                     "Wet op de vennootschapsbelasting 1969, artikel 13:\n"
                     "De deelnemingsvrijstelling is een belangrijke fiscale regeling in de Nederlandse vennootschapsbelasting.\n"
@@ -36,17 +30,15 @@ class LegislationTool(BaseTool):
                     "De deelnemingsvrijstelling geldt meestal als:\n"
                     "Aandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in de dochtermaatschappij.\n"
                 ),
-                citation="Wet VPB 1969 art. 13",
             ),
             Legislation(
                 title="Wet op de omzetbelasting 1968, artikel 2",
-                law="Wet OB",
-                article="artikel 2",
                 content="Wet op de omzetbelasting 1968, artikel 2: het btw-tarief op goederen is 21%",
-                citation="Wet OB 1968 art. 2",
             ),
         ]
-    
+        self.session_manager = session_manager
+        self.dossier_id_getter = dossier_id_getter or (lambda: "default")
+
     @property
     def name(self) -> str:
         return "get_legislation"
@@ -68,7 +60,7 @@ class LegislationTool(BaseTool):
             "required": ["query"]
         }
     
-    def execute(self, query: str) -> ToolResult:
+    async def execute(self, query: str) -> ToolResult:
         """
         Retrieve legislation based on the query.
         
@@ -93,19 +85,43 @@ class LegislationTool(BaseTool):
                     error_message="Geen relevante wetgeving gevonden voor deze vraag."
                 )
             
-            # Return dataclass objects; metadata holds titles for quick display
+            # Update dossier if session manager is provided
+            applied = False
+            try:
+                if self.session_manager is not None:
+                    dos = self.session_manager.get_dossier(self.dossier_id_getter())
+                    if dos is not None:
+                        dos.add_legislation(relevant_legislation)
+                        # Auto-select titles
+                        for it in relevant_legislation:
+                            t = (it.title or "").strip()
+                            if t and t not in dos.selected_ids:
+                                dos.selected_ids.append(t)
+                        applied = True
+            except Exception:
+                applied = False
+
+            # Prepare assistant message listing titles and confirmation question
+            titles = [l.title for l in relevant_legislation if (l.title or '').strip()]
+            lines = ["Ik vond de volgende bronnen:"]
+            for i, t in enumerate(titles, 1):
+                lines.append(f"{i}. {t}")
+            lines.append("Zijn deze bronnen correct voor uw vraag?")
+            assistant_msg = "\n".join(lines)
+
+            # Return pydantic objects; metadata holds titles and flags
             formatted_results = relevant_legislation
-            source_names = [item.title for item in relevant_legislation]
-            
             result = ToolResult(
                 success=True,
                 data=formatted_results,
                 metadata={
-                    "source_names": source_names,
+                    "source_names": titles,
                     "query": query,
                     "result_count": len(formatted_results),
-                    "search_method": "keyword_matching"  # In real system: "semantic_search"
-                }
+                    "search_method": "keyword_matching",
+                    "dossier_updated": applied,
+                },
+                message=assistant_msg,
             )
             
             logger.info(f"Found {len(formatted_results)} legislation items")

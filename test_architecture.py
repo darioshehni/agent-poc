@@ -15,11 +15,24 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 # Load environment variables
 load_dotenv()
 
+import asyncio
 from src.agent import TaxChatbot
-from src.llm import MockLLMClient
+from src.llm import LlmChat, LlmAnswer
 
 
-def test_basic_chat():
+class FakeLlm(LlmChat):
+    def __init__(self, responses: list[str]):
+        super().__init__()
+        self._responses = responses
+        self._i = 0
+
+    async def chat(self, messages, model_name: str, **kwargs):
+        text = self._responses[self._i % len(self._responses)]
+        self._i += 1
+        return LlmAnswer(answer=text, tools_used=[], tool_calls=[])
+
+
+async def test_basic_chat():
     """Test basic chat functionality."""
     print("=== Testing Basic Chat ===")
     
@@ -28,24 +41,24 @@ def test_basic_chat():
         "Hallo! Ik ben een Nederlandse belastingchatbot. Ik kan u helpen met belastingvragen.",
         "Ik spreek Nederlands en kan Nederlandse belastingvragen beantwoorden.",
     ]
-    mock_client = MockLLMClient(responses=mock_responses)
+    mock_client = FakeLlm(responses=mock_responses)
     
     # Create chatbot
     chatbot = TaxChatbot(llm_client=mock_client, session_id="test_session")
     
     # Test general questions
     print("\nUser: Wat kun je doen?")
-    response = chatbot.process_message("Wat kun je doen?")
+    response = await chatbot.process_message("Wat kun je doen?")
     print(f"Bot: {response}")
     
     print("\nUser: Welke talen spreek je?")
-    response = chatbot.process_message("Welke talen spreek je?")
+    response = await chatbot.process_message("Welke talen spreek je?")
     print(f"Bot: {response}")
     
     return chatbot
 
 
-def test_session_management():
+async def test_session_management():
     """Test session management features."""
     print("\n=== Testing Session Management ===")
     
@@ -57,15 +70,15 @@ def test_session_management():
     
     # Test commands
     print("\nUser: show status")
-    response = chatbot.process_message("show status")
+    response = await chatbot.process_message("show status")
     print(f"Bot: {response}")
     
     print("\nUser: reset")
-    response = chatbot.process_message("reset")
+    response = await chatbot.process_message("reset")
     print(f"Bot: {response}")
 
 
-def test_tools():
+async def test_tools():
     """Test tool functionality."""
     print("\n=== Testing Tools ===")
     
@@ -83,7 +96,7 @@ def test_tools():
         print("All tools passed validation ✓")
 
 
-def test_commands():
+async def test_commands():
     """Test command processing."""
     print("\n=== Testing Commands ===")
     
@@ -103,11 +116,11 @@ def test_commands():
     
     for cmd in test_commands:
         print(f"\nUser: {cmd}")
-        response = chatbot.process_message(cmd)
+        response = await chatbot.process_message(cmd)
         print(f"Bot: {response}")
 
 
-def test_real_openai():
+async def test_real_openai():
     """Test with real OpenAI (requires API key)."""
     print("\n=== Testing with Real OpenAI ===")
     
@@ -116,20 +129,17 @@ def test_real_openai():
         return
     
     try:
-        from src.llm import OpenAIClient
-        
-        # Create real client
-        client = OpenAIClient()
+        client = LlmChat()
         chatbot = TaxChatbot(llm_client=client, session_id="real_test")
         
         # Test general question
         print("\nUser: Hallo, wat kun je doen?")
-        response = chatbot.process_message("Hallo, wat kun je doen?")
+        response = await chatbot.process_message("Hallo, wat kun je doen?")
         print(f"Bot: {response}")
         
         # Test tax question (this should trigger tool usage)
         print("\nUser: Wat is het BTW tarief?")
-        response = chatbot.process_message("Wat is het BTW tarief?")
+        response = await chatbot.process_message("Wat is het BTW tarief?")
         print(f"Bot: {response}")
         
         # Show session info
@@ -140,7 +150,7 @@ def test_real_openai():
         if "Zijn deze bronnen correct" in response:
             print("\n=== Testing Source Confirmation ===")
             print("User: ja")
-            confirmation_response = chatbot.process_message("ja")
+            confirmation_response = await chatbot.process_message("ja")
             print(f"Bot: {confirmation_response}")
             
             # Verify generate_tax_answer was used
@@ -154,20 +164,20 @@ def test_real_openai():
         print(f"Error testing with OpenAI: {e}")
 
 
-def main():
+async def main():
     """Run all tests."""
     print("Testing Tax Chatbot Architecture")
     print("=" * 50)
     
     try:
         # Basic tests
-        chatbot = test_basic_chat()
-        test_session_management()
-        test_tools()
-        test_commands()
+        chatbot = await test_basic_chat()
+        await test_session_management()
+        await test_tools()
+        await test_commands()
         
         # Real OpenAI test (optional)
-        test_real_openai()
+        await test_real_openai()
         
         print("\n" + "=" * 50)
         print("✅ All tests completed successfully!")
@@ -183,4 +193,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

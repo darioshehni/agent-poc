@@ -1,125 +1,118 @@
 from __future__ import annotations
 
-from typing import List, Optional, Any, Dict
-import uuid
+from typing import Optional, Any
 from pydantic import BaseModel, Field
-
-
-def _gen_id(prefix: str) -> str:
-    return f"{prefix}-{uuid.uuid4().hex[:8]}"
+from datetime import datetime
 
 
 class Legislation(BaseModel):
-    """Structured representation of a legislation snippet/article.
-
-    Fields capture identifiers and minimal metadata plus the raw `content`
-    text used for downstream answer generation and display.
-    """
-    id: str = Field(default_factory=lambda: _gen_id("LEG"))
+    """Structured representation of a legislation snippet/article."""
     title: str = ""
-    law: Optional[str] = None
-    article: Optional[str] = None
     content: str = ""
-    citation: Optional[str] = None
-    url: Optional[str] = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        return self.model_dump()
-
-    @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "Legislation":
-        return Legislation.model_validate(d)
 
 
 class CaseLaw(BaseModel):
     """Structured representation of a case law entry (jurisprudentie)."""
-    id: str = Field(default_factory=lambda: _gen_id("CAS"))
     title: str = ""
-    court: Optional[str] = None
-    ecli: Optional[str] = None
     content: str = ""
-    date: Optional[str] = None
-    url: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        return self.model_dump()
 
-    @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "CaseLaw":
-        return CaseLaw.model_validate(d)
+class DocumentTitles(BaseModel):
+    """Holds titles of documents."""
+    titles: list[str] = Field(default_factory=list, description="Titles of sources")
 
 
 class Dossier(BaseModel):
-    """Aggregates sources collected during a session.
+    """Aggregates sources and curated conversation for one user interaction stream.
 
-    The dossier travels with the session to support confirmation flows and
-    deterministic answer generation based on known sources.
+    The dossier persists the conversation and selected sources across turns to
+    support confirmation flows and deterministic answer generation.
     """
-    legislation: List[Legislation] = Field(default_factory=list)
-    case_law: List[CaseLaw] = Field(default_factory=list)
-    selected_ids: List[str] = Field(default_factory=list, description="IDs of sources selected for the next action")
+    # Identity and timestamps
+    dossier_id: str = ""
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
-    def add_legislation(self, items: List[Legislation]) -> None:
+    # Collected sources and curated conversation
+    legislation: list[Legislation] = Field(default_factory=list)
+    case_law: list[CaseLaw] = Field(default_factory=list)
+    selected_ids: list[str] = Field(default_factory=list, description="IDs of sources selected for the next action (titles act as IDs)")
+    conversation: list[dict[str, str]] = Field(default_factory=list, description="User-visible conversation (role/content)")
+
+    def add_legislation(self, items: list[Legislation]) -> None:
         self.legislation.extend(items)
 
-    def add_case_law(self, items: List[CaseLaw]) -> None:
+    def add_case_law(self, items: list[CaseLaw]) -> None:
         self.case_law.extend(items)
 
-    def titles(self) -> List[str]:
-        titles: List[str] = []
-        titles.extend([l.title or (l.law or "") for l in self.legislation])
-        titles.extend([c.title or (c.ecli or "") for c in self.case_law])
-        return [t for t in titles if t]
+    def titles(self) -> list[str]:
+        titles: list[str] = []
+        titles.extend([l.title for l in self.legislation if (l.title or "").strip()])
+        titles.extend([c.title for c in self.case_law if (c.title or "").strip()])
+        return [t for t in titles if (t or "").strip()]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return self.model_dump()
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "Dossier":
+    def from_dict(d: dict[str, Any]) -> "Dossier":
         return Dossier.model_validate(d)
 
     # --- Selection helpers ---
-    def select_by_ids(self, ids: List[str]) -> None:
+    def select_by_ids(self, ids: list[str]) -> None:
         self.selected_ids = list(dict.fromkeys(ids))  # de-duplicate, preserve order
 
     def clear_selection(self) -> None:
         self.selected_ids.clear()
+        self.updated_at = datetime.now()
 
-    def _texts_from_legislation(self, items: List[Legislation]) -> List[str]:
+    def _texts_from_legislation(self, items: list[Legislation]) -> list[str]:
         return [getattr(x, 'content', str(x)) for x in items]
 
-    def _texts_from_case_law(self, items: List[CaseLaw]) -> List[str]:
+    def _texts_from_case_law(self, items: list[CaseLaw]) -> list[str]:
         return [getattr(x, 'content', str(x)) for x in items]
 
-    def selected_texts(self) -> Dict[str, List[str]]:
+    def selected_texts(self) -> dict[str, list[str]]:
         if not self.selected_ids:
             return {"legislation": [], "case_law": []}
-        leg_sel = [l for l in self.legislation if l.id in self.selected_ids]
-        cas_sel = [c for c in self.case_law if c.id in self.selected_ids]
+        # Titles function as identifiers for selection
+        leg_sel = [l for l in self.legislation if l.title in self.selected_ids]
+        cas_sel = [c for c in self.case_law if c.title in self.selected_ids]
         return {
             "legislation": self._texts_from_legislation(leg_sel),
             "case_law": self._texts_from_case_law(cas_sel),
         }
 
-    def all_texts(self) -> Dict[str, List[str]]:
+    def all_texts(self) -> dict[str, list[str]]:
         return {
             "legislation": self._texts_from_legislation(self.legislation),
             "case_law": self._texts_from_case_law(self.case_law),
         }
 
-    def selected_titles(self) -> List[str]:
+    def selected_titles(self) -> list[str]:
         """Return titles for currently selected sources."""
-        titles: List[str] = []
-        titles.extend([l.title for l in self.legislation if l.id in self.selected_ids and l.title])
-        titles.extend([c.title for c in self.case_law if c.id in self.selected_ids and c.title])
+        titles: list[str] = []
+        titles.extend([l.title for l in self.legislation if l.title in self.selected_ids and l.title])
+        titles.extend([c.title for c in self.case_law if c.title in self.selected_ids and c.title])
         return titles
 
-    def unselected_titles(self) -> List[str]:
+    def unselected_titles(self) -> list[str]:
         """Return titles for collected but currently unselected sources."""
-        titles: List[str] = []
-        titles.extend([l.title for l in self.legislation if l.id not in self.selected_ids and l.title])
-        titles.extend([c.title for c in self.case_law if c.id not in self.selected_ids and c.title])
+        titles: list[str] = []
+        titles.extend([l.title for l in self.legislation if l.title not in self.selected_ids and l.title])
+        titles.extend([c.title for c in self.case_law if c.title not in self.selected_ids and c.title])
         return titles
+
+    # --- Conversation helpers (user-visible) ---
+    def add_conversation_user(self, content: str) -> None:
+        if isinstance(content, str) and content.strip():
+            self.conversation.append({"role": "user", "content": content})
+            self.updated_at = datetime.now()
+
+    def add_conversation_assistant(self, content: str) -> None:
+        if isinstance(content, str) and content.strip():
+            self.conversation.append({"role": "assistant", "content": content})
+            self.updated_at = datetime.now()
 
 
 class RemovalDecision(BaseModel):
@@ -129,5 +122,5 @@ class RemovalDecision(BaseModel):
     concrete dossier entries should return this object so the agent can update
     state deterministically by ID.
     """
-    remove_ids: List[str] = Field(default_factory=list)
+    remove_ids: list[str] = Field(default_factory=list)
     reasoning: Optional[str] = None

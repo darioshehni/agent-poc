@@ -1,0 +1,19 @@
+{
+  "session_id": "term-53fd0087",
+  "created_at": "2025-08-29T15:00:39.651919",
+  "updated_at": "2025-08-29T15:00:39.652934",
+  "state": "idle",
+  "current_question": "wat is het btw tarief van tandpasta?",
+  "dossier": {
+    "legislation": [],
+    "case_law": [],
+    "selected_ids": []
+  },
+  "conversation_history": [
+    {
+      "role": "user",
+      "content": "wat is het btw tarief van tandpasta?",
+      "timestamp": "2025-08-29T15:00:39.652008"
+    }
+  ]
+}

@@ -5,21 +5,16 @@ This tool generates a comprehensive answer for a tax question using the current
 session's dossier as its authoritative context. It does not rely on large
 source texts being present in the conversation. Instead, it retrieves the
 legislation and case law content directly from the SessionManager using the
-current session_id supplied by the agent at runtime.
+current dossier_id supplied by the agent at runtime.
 """
 
 from typing import Dict, Any, List, Callable
 import logging
 
-try:
-    from ..base import BaseTool, ToolResult
-    from ..llm import OpenAIClient
-    from ..prompts import get_prompt_template, fill_prompt_template
-except ImportError:
-    from base import BaseTool, ToolResult
-    from llm import OpenAIClient
-    from prompts import get_prompt_template, fill_prompt_template
-    from sessions import SessionManager
+from src.base import BaseTool, ToolResult
+from src.llm import LlmChat
+from src.prompts import get_prompt_template, fill_prompt_template
+from src.sessions import SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +30,17 @@ class AnswerTool(BaseTool):
 
     def __init__(
         self,
-        llm_client: OpenAIClient = None,
+        llm_client: Any = None,
         session_manager: 'SessionManager' = None,
-        session_id_getter: Callable[[], str] | None = None,
+        dossier_id_getter: Callable[[], str] | None = None,
+        model_name_getter: Callable[[], str] | None = None,
     ):
-        self.llm_client = llm_client or OpenAIClient()
+        # Expect an async LlmChat client
+        self.llm_client = llm_client
         # Session access for dossier retrieval
         self.session_manager = session_manager
-        self.session_id_getter = session_id_getter or (lambda: "default")
+        self.dossier_id_getter = dossier_id_getter or (lambda: "default")
+        self.model_name_getter = model_name_getter or (lambda: "gpt-4o-mini")
     
     @property
     def name(self) -> str:
@@ -65,7 +63,7 @@ class AnswerTool(BaseTool):
             "required": ["question"]
         }
     
-    def execute(self, question: str, legislation: List[str] = None, case_law: List[str] = None, **_: Any) -> ToolResult:
+    async def execute(self, question: str, legislation: List[str] = None, case_law: List[str] = None, **_: Any) -> ToolResult:
         """
         Generate a comprehensive tax answer using sources from the session dossier.
         
@@ -79,14 +77,19 @@ class AnswerTool(BaseTool):
         try:
             logger.info(f"Generating answer for question: {question[:100]}...")
             
-            # If question not provided by the LLM tool call, fall back to session
+            # If question not provided by the LLM tool call, fall back to last user message
             q = (question or "").strip()
             if not q and self.session_manager is not None:
                 try:
-                    session_id = self.session_id_getter()
-                    session = self.session_manager.get_session(session_id)
-                    if session and session.current_question:
-                        q = session.current_question.strip()
+                    dossier_id = self.dossier_id_getter()
+                    dossier = self.session_manager.get_dossier(dossier_id)
+                    if dossier and dossier.conversation:
+                        for msg in reversed(dossier.conversation):
+                            if isinstance(msg, dict) and msg.get("role") == "user":
+                                content = (msg.get("content") or "").strip()
+                                if content:
+                                    q = content
+                                    break
                 except Exception:
                     pass
             if not q:
@@ -97,18 +100,25 @@ class AnswerTool(BaseTool):
             case_law_texts: List[str] = []
             try:
                 if self.session_manager is not None:
-                    session_id = self.session_id_getter()
-                    session = self.session_manager.get_session(session_id)
-                    if session and session.dossier:
+                    dossier_id = self.dossier_id_getter()
+                    dossier = self.session_manager.get_dossier(dossier_id)
+                    if dossier:
                         # Prefer selected items if any, else use all collected
-                        sel = session.dossier.selected_texts()
-                        if sel.get("legislation") or sel.get("case_law"):
-                            legislation_texts = sel.get("legislation", [])
-                            case_law_texts = sel.get("case_law", [])
+                        sel = dossier.selected_texts()
+                        has_sel = (
+                            isinstance(sel, dict)
+                            and (
+                                ("legislation" in sel and sel["legislation"]) or
+                                ("case_law" in sel and sel["case_law"])
+                            )
+                        )
+                        if has_sel:
+                            legislation_texts = sel["legislation"] if "legislation" in sel else []
+                            case_law_texts = sel["case_law"] if "case_law" in sel else []
                         else:
-                            all_tx = session.dossier.all_texts()
-                            legislation_texts = all_tx.get("legislation", [])
-                            case_law_texts = all_tx.get("case_law", [])
+                            all_tx = dossier.all_texts()
+                            legislation_texts = all_tx["legislation"] if "legislation" in all_tx else []
+                            case_law_texts = all_tx["case_law"] if "case_law" in all_tx else []
             except Exception as e:
                 logger.warning(f"Could not retrieve dossier for answer tool: {e}")
 
@@ -131,14 +141,13 @@ class AnswerTool(BaseTool):
                 case_law=case_law_text
             )
             
-            # Generate answer using LLM
-            response = self.llm_client.chat_completion(
-                messages=[{"role": "user", "content": prompt}],
+            # Generate answer using async LLM client
+            answer_obj = await self.llm_client.chat(
+                messages=prompt,
+                model_name=self.model_name_getter(),
                 temperature=0.0,
-                max_tokens=2000
             )
-
-            answer = response["choices"][0]["message"].get("content", "")
+            answer = answer_obj.answer
             
             if not answer or not answer.strip():
                 return ToolResult(
@@ -155,9 +164,6 @@ class AnswerTool(BaseTool):
                     "question": q,
                     "legislation_count": len(legislation_texts),
                     "case_law_count": len(case_law_texts),
-                    "prompt_tokens": response.get("usage", {}).get("prompt_tokens", 0),
-                    "completion_tokens": response.get("usage", {}).get("completion_tokens", 0),
-                    "total_tokens": response.get("usage", {}).get("total_tokens", 0)
                 }
             )
             
@@ -212,11 +218,11 @@ class AnswerTool(BaseTool):
         cas: List[str] = []
         try:
             if self.session_manager is not None:
-                session_id = self.session_id_getter()
-                session = self.session_manager.get_session(session_id)
-                if session and session.dossier:
-                    leg = [getattr(x, 'content', str(x)) for x in session.dossier.legislation]
-                    cas = [getattr(x, 'content', str(x)) for x in session.dossier.case_law]
+                dossier_id = self.dossier_id_getter()
+                dossier = self.session_manager.get_dossier(dossier_id)
+                if dossier:
+                    leg = [getattr(x, 'content', str(x)) for x in dossier.legislation]
+                    cas = [getattr(x, 'content', str(x)) for x in dossier.case_law]
         except Exception as e:
             logger.warning(f"Validation: could not read dossier: {e}")
 
