@@ -78,8 +78,8 @@ class AnswerTool:
             case_laws = dossier.get_selected_case_law()
 
             # Format sources for the prompt
-            legislation_context = self._format_sources(sources=legislations, category="WETGEVING")
-            case_law_context = self._format_sources(sources=case_laws, category="JURISPRUDENTIE")
+            legislation_context = self._format_sources(sources=legislations)
+            case_law_context = self._format_sources(sources=case_laws)
             
             # Create the prompt using template
             prompt = fill_prompt_template(
@@ -112,12 +112,12 @@ class AnswerTool:
             raise ValueError(f"Error generating answer: {str(e)}")
 
 
-    def _format_sources(self, sources: List[any], category: str) -> str:
+    def _format_sources(self, sources: List[any]) -> str:
         """Format a list of source texts for inclusion in the prompt."""
         if not sources:
-            return f"{category}:\nGeen {category.lower()} beschikbaar.\n"
+            return "Geen bronnen beschikbaar.\n"
 
-        formatted_context = f"{category}:\n"
+        formatted_context = ""
         for i, source in enumerate(sources, 1):
                 formatted_context += f"{i}:\n{source.title}\n{source.content}\n\n"
 

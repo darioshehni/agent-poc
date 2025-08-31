@@ -41,7 +41,7 @@ class RemoveSourcesTool:
 
     @property
     def description(self) -> str:
-        return "Given a user message specifying which source have to be removed, this tool removes those tools from the dossier."
+        return "Given a user message specifying which sources are relevant, this tool removes the non-relevant ones from the dossier. It does so by returning a list of titles that have to be REMOVED."
 
     @property
     def parameters_schema(self) -> dict[str, Any]:
@@ -50,7 +50,7 @@ class RemoveSourcesTool:
             "properties": {
                 "instruction": {
                     "type": "string",
-                    "description": "A natural language instruction that explains which documents should be removed, e.g., 'verwijder artikel 13 en ECLI:234:456 uit de selectie'. "
+                    "description": "A natural language instruction that explains which documents should, or should not, be removed, e.g., 'verwijder artikel 13 en ECLI:234:456 uit de selectie' or 'behoud alleen de wetgeving, niet de jurisprudentie.'. "
                 }
             },
             "required": ["instruction"]
@@ -80,7 +80,7 @@ class RemoveSourcesTool:
 
             titles = list(document_titles.titles or [])
             if not titles:
-                return ToolResult(False, None, "No titles selected for removal")
+                return ToolResult(success=False, data=None, message="No titles selected for removal")
 
             patch = DossierPatch(unselect_titles=titles)
 

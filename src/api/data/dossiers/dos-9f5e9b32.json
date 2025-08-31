@@ -1,0 +1,87 @@
+{
+  "dossier_id": "dos-9f5e9b32",
+  "legislation": [
+    {
+      "title": "Wet op de vennootschapsbelasting 1969, artikel 13",
+      "content": "De deelnemingsvrijstelling is een belangrijke fiscale regeling in de Nederlandse vennootschapsbelasting.\nKort gezegd betekent het dat een bedrijf (bijvoorbeeld een BV of NV) geen belasting hoeft te betalen over winst (dividenden of verkoopwinsten) die het ontvangt uit een kwalificerende deelneming. Zo wordt dubbele belasting voorkomen: de winst is namelijk al belast bij de dochtermaatschappij die de winst maakte.\nVoorwaarden deelnemingsvrijstelling\nDe deelnemingsvrijstelling geldt meestal als:\nAandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in de dochtermaatschappij.\n"
+    },
+    {
+      "title": "Wet op de omzetbelasting 1968, artikel 2",
+      "content": "Het btw-tarief op goederen is 21%"
+    }
+  ],
+  "case_law": [
+    {
+      "title": "ECLI:NL:HR:2020:123",
+      "content": "Geschil over btw-classificatie en tarieftoepassing. Het btw tarief op tandpasta is 0%"
+    },
+    {
+      "title": "ECLI:NL:RBAMS:2021:456",
+      "content": "Deelnemingsvrijstelling vereist een zakelijk motief."
+    }
+  ],
+  "selected_ids": [
+    "Wet op de vennootschapsbelasting 1969, artikel 13",
+    "Wet op de omzetbelasting 1968, artikel 2",
+    "ECLI:NL:HR:2020:123",
+    "ECLI:NL:RBAMS:2021:456"
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "hi"
+    },
+    {
+      "role": "assistant",
+      "content": "Hallo! Hoe kan ik je helpen vandaag? Heb je vragen over belastingen of iets anders waar ik mee kan helpen?"
+    },
+    {
+      "role": "user",
+      "content": "wat is de grens voor anmerkig deelnemingsvrijstelling?"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende bronnen:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2\n3. ECLI:NL:HR:2020:123\n4. ECLI:NL:RBAMS:2021:456\nZijn deze bronnen correct voor uw vraag?"
+    },
+    {
+      "role": "user",
+      "content": "de eclis zijn niet nodig"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik heb bronnen verzameld, maar kon geen titels presenteren. Kunt u uw vraag iets aanscherpen?"
+    },
+    {
+      "role": "user",
+      "content": "wat is de btw op tandpasta"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende bronnen:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2\n3. ECLI:NL:HR:2020:123\n4. ECLI:NL:RBAMS:2021:456\nZijn deze bronnen correct voor uw vraag?"
+    },
+    {
+      "role": "user",
+      "content": "ECLI:NL:RBAMS:2021:456"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik heb bronnen verzameld, maar kon geen titels presenteren. Kunt u uw vraag iets aanscherpen?"
+    },
+    {
+      "role": "user",
+      "content": "ECLI:NL:RBAMS:2021:456"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik heb bronnen verzameld, maar kon geen titels presenteren. Kunt u uw vraag iets aanscherpen?"
+    },
+    {
+      "role": "user",
+      "content": "isdeze is niet nodig: ECLI:NL:RBAMS:2021:456"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik heb bronnen verzameld, maar kon geen titels presenteren. Kunt u uw vraag iets aanscherpen?"
+    }
+  ]
+}
