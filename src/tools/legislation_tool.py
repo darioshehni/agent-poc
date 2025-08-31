@@ -53,7 +53,7 @@ class LegislationTool:
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "The tax question or topic to search legislation for. This should also include all context that is relevant or helpfull for finding relevant legislation. Including context where the user mentions which documents are relevant or not."
+                    "description": "Tax question or topic to search legislation for"
                 }
             },
             "required": ["query"]

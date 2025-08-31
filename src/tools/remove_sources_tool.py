@@ -50,7 +50,7 @@ class RemoveSourcesTool:
             "properties": {
                 "instruction": {
                     "type": "string",
-                    "description": "User instruction specifying which sources to remove. This should be a natural language instruction that explains which documents should be removed, e.g., 'verwijder artikel 13 en ECLI:234:456 uit de selectie'."
+                    "description": "Returns a list of source that have to be removed based on user instruction. The user gives a natural language instruction that explains which documents should be removed, e.g., 'verwijder artikel 13 en ECLI:234:456 uit de selectie' This tool returns a list of title names that have to be removed based on the instructions."
                 }
             },
             "required": ["instruction"]

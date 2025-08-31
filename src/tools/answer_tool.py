@@ -49,7 +49,7 @@ class AnswerTool:
             "properties": {
                 "question": {
                     "type": "string",
-                    "description": "The original tax question from the user. This should also contain all context from the conversation that is relevant or helpful for answering the question. Including context where the user mentions which documents are relevant or not."
+                    "description": "Original tax question from the user"
                 }
             },
             "required": ["question"]
@@ -70,42 +70,25 @@ class AnswerTool:
             logger.info(f"Generating answer for question: {question}...")
             
             # Require the model to pass the question explicitly
-            q = (question or "").strip()
-            if not q:
+            question = question.strip()
+            if not question:
                 raise ValueError("Question cannot be empty")
-                # return ToolResult(success=False, data=None, error_message="Question cannot be empty")
-            # Require at least some sources available (selected preferred; else fallback below)
-                # return ToolResult(
-                #     success=False,
-                #     data=None,
-                #     error_message="No dossier sources available to generate an answer"
-                # )
 
-            # Gather source texts: prefer selected, else all
-            selected = dossier.selected_texts()
-            selection_present = (
-                isinstance(selected, dict)
-                and ((selected.get("legislation") or selected.get("case_law")))
-            )
-            if selection_present:
-                legislation_texts = selected.get("legislation", [])
-                case_law_texts = selected.get("case_law", [])
-            else:
-                all_texts = dossier.all_texts()
-                legislation_texts = all_texts.get("legislation", [])
-                case_law_texts = all_texts.get("case_law", [])
+            legislations = dossier.get_selected_legislation()
+            case_laws = dossier.get_selected_case_law()
 
             # Format sources for the prompt
-            legislation_context = self._format_sources(sources=legislation_texts, category="WETGEVING")
-            case_law_context = self._format_sources(sources=case_law_texts, category="JURISPRUDENTIE")
+            legislation_context = self._format_sources(sources=legislations, category="WETGEVING")
+            case_law_context = self._format_sources(sources=case_laws, category="JURISPRUDENTIE")
             
             # Create the prompt using template
             prompt = fill_prompt_template(
                 get_prompt_template("answer_generation"),
-                question=q,
+                question=question,
                 legislation=legislation_context,
                 case_law=case_law_context
             )
+            print(prompt)
             
             llm_answer: LlmAnswer = await self.llm_client.chat(
                 messages=prompt,
@@ -113,14 +96,10 @@ class AnswerTool:
                 temperature=0.0,
             )
             answer = llm_answer.answer
+            print(answer)
             
             if not answer:
                 raise ValueError("LLM generated empty response")
-                # return ToolResult(
-                #     success=False,
-                #     data=None,
-                #     error_message="LLM generated empty response"
-                # )
             
             # Return answer text; agent will append it to the conversation
             result = ToolResult(success=True, data=answer.strip())
@@ -130,21 +109,16 @@ class AnswerTool:
             
         except Exception as e:
             logger.error(f"Error generating answer: {str(e)}", exc_info=True)
-            return ToolResult(
-                success=False,
-                data=None,
-                error_message=f"Fout bij het genereren van het antwoord: {str(e)}"
-            )
+            raise ValueError(f"Error generating answer: {str(e)}")
 
-    def _format_sources(self, sources: List[str], category: str) -> str:
+
+    def _format_sources(self, sources: List[any], category: str) -> str:
         """Format a list of source texts for inclusion in the prompt."""
         if not sources:
             return f"{category}:\nGeen {category.lower()} beschikbaar.\n"
 
-        lines = [f"{category}:"]
-        for i, text in enumerate(sources, 1):
-            text_clean = (text or "").strip()
-            if text_clean:
-                lines.append(f"{i}. {text_clean}")
-        lines.append("")
-        return "\n".join(lines)
+        formatted_context = f"{category}:\n"
+        for i, source in enumerate(sources, 1):
+                formatted_context += f"{i}:\n{source.title}\n{source.content}\n\n"
+
+        return formatted_context

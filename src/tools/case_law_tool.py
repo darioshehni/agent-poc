@@ -48,7 +48,7 @@ class CaseLawTool:
             "properties": {
                 "query": {
                     "type": "string", 
-                    "description": "The tax question or topic to search case law for. This should also include all context that is relevant or helpfull for finding relevant case law. Including context where the user mentions which documents are relevant or not."
+                    "description": "Tax question or topic to search case law for"
                 }
             },
             "required": ["query"]

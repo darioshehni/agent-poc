@@ -12,6 +12,7 @@ Rules:
 """
 
 from typing import Any, Dict, List
+from src.prompts import build_retrieval_message, REMOVAL_CONFIRMATION
 
 
 def present_outcomes(outcomes: List[Dict[str, Any]]) -> List[str]:
@@ -42,10 +43,9 @@ def present_outcomes(outcomes: List[Dict[str, Any]]) -> List[str]:
         for i, title in enumerate(titles, 1):
             lines.append(f"{i}. {title}")
         lines.append("Zijn deze bronnen correct voor uw vraag?")
-        messages.append("
-".join(lines))
+        messages.append("\n".join(lines))
 
     if removal_flag:
-        messages.append("Ik heb de genoemde bronnen uit de selectie gehaald.")
+        messages.append(REMOVAL_CONFIRMATION)
 
     return messages

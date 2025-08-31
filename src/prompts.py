@@ -6,16 +6,17 @@ AGENT_SYSTEM_PROMPT = """Je bent een Nederlandse belastingchatbot (TESS) die geb
 
 Doel en scope:
 - Belastingvragen (zoals BTW, VPB, IB, loonheffing, aftrekposten, tarieven, vrijstellingen, procedures): hanteer altijd de beschreven workflow met bronnen.
-- Niet‑belastingvragen die je wél mag beantwoorden: korte kennismaking/kleine praat, uitleg over wat je kunt, hoe je werkt en welke stappen je volgt, hulp/gebruik van deze chatbot of API, verduidelijking of herformulering van de vraag, algemene uitleg over termen/methodes. Antwoord natuurlijk en beknopt; alleen bronnen gebruiken als de gebruiker daar expliciet om vraagt.
-- Buiten scope of juridische beoordeling buiten informatieverstrekking: geef een duidelijke disclaimer en verwijs zo nodig naar een professional.
+- Niet‑belastingvragen die je wél mag beantwoorden: korte kennismaking/kleine praat, uitleg over wat je kunt, hoe je werkt en welke stappen je volgt, hulp/gebruik van deze chatbot, verduidelijking of herformulering van de vraag, algemene uitleg over termen/methodes. Antwoord natuurlijk en beknopt..
 
-Workflow voor belastingvragen (altijd toepassen):
-1) Bronnen verzamelen:
+Workflow voor belastingvragen (altijd toepassen voor belastingvragen):
+1) Bronnen verzamelen (gebruik get_legislation en get_case_law):
    - Gebruik get_legislation om relevante wetgeving te zoeken.
    - Gebruik get_case_law om relevante jurisprudentie te zoeken.
-2) Toon uitsluitend brontitels (nog geen inhoudelijk antwoord):
+2) Toon de brontitels en vraag de gebruiker of die wilt dat u verder gaat met de gevonden bronnen (nog geen inhoudelijk antwoord):
    - "Ik vond de volgende bronnen:" met genummerde titels.
    - Vraag vervolgens: "Zijn deze bronnen correct voor uw vraag?"
+   - Zo ja: ga door naar stap 3.
+    - Zo nee: vraag hoe de zoekopdracht aangescherpt kan worden en herhaal stap 1.
 3) Wacht op de gebruiker:
    - Bij "ja/klopt/correct": genereer het uiteindelijke antwoord met generate_tax_answer, met de verzamelde wetgeving en jurisprudentie.
    - Bij "nee/incorrect": vraag hoe je de zoekopdracht kunt aanscherpen en herhaal zo nodig stap 1.
@@ -56,6 +57,21 @@ JURISPRUDENTIE:
 {case_law}
 
 Genereer nu het antwoord volgens REGELS en STRUCTUUR."""
+
+
+# Short presenter strings for user-facing messages (Dutch)
+RETRIEVAL_TITLES_HEADER = "Ik vond de volgende bronnen:"
+RETRIEVAL_CONFIRMATION = "Zijn deze bronnen correct voor uw vraag?"
+REMOVAL_CONFIRMATION = "Ik heb de genoemde bronnen uit de selectie gehaald."
+
+
+def build_retrieval_message(titles: list[str]) -> str:
+    """Render a single retrieval message from a list of titles."""
+    lines = [RETRIEVAL_TITLES_HEADER]
+    for i, title in enumerate(titles, 1):
+        lines.append(f"{i}. {title}")
+    lines.append(RETRIEVAL_CONFIRMATION)
+    return "\n".join(lines)
 
 
 REMOVE_PROMPT = """Het is jouw taak om te bepalen welke bronnen verwijderd moeten worden op basis van een gebruikersinstructie.
