@@ -21,13 +21,13 @@ class CaseLawTool:
             CaseLaw(
                 title="ECLI:NL:HR:2020:123",
                 content=(
-                    "Hoge Raad ECLI:NL:HR:2020:123: geschil over btw-classificatie en tarieftoepassing. Het btw tarief op tandpasta is 0%"
+                    "Geschil over btw-classificatie en tarieftoepassing. Het btw tarief op tandpasta is 0%"
                 ),
             ),
             CaseLaw(
                 title="ECLI:NL:RBAMS:2021:456",
                 content=(
-                    "Rechtbank Amsterdam ECLI:NL:RBAMS:2021:456: deelnemingsvrijstelling vereist een zakelijk motief."
+                    "Deelnemingsvrijstelling vereist een zakelijk motief."
                 ),
             ),
         ]

@@ -142,7 +142,6 @@ class Dossier(BaseModel):
         titles.extend([c.title for c in self.case_law if c.title not in self.selected_ids and c.title])
         return titles
 
-    # --- Conversation helpers (user-visible) ---
     def add_conversation_user(self, content: str) -> None:
         if isinstance(content, str) and content.strip():
             self.conversation.append({"role": "user", "content": content})

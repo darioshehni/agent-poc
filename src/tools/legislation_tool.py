@@ -23,7 +23,6 @@ class LegislationTool:
             Legislation(
                 title="Wet op de vennootschapsbelasting 1969, artikel 13",
                 content=(
-                    "Wet op de vennootschapsbelasting 1969, artikel 13:\n"
                     "De deelnemingsvrijstelling is een belangrijke fiscale regeling in de Nederlandse vennootschapsbelasting.\n"
                     "Kort gezegd betekent het dat een bedrijf (bijvoorbeeld een BV of NV) geen belasting hoeft te betalen over winst (dividenden of verkoopwinsten) die het ontvangt uit een kwalificerende deelneming. Zo wordt dubbele belasting voorkomen: de winst is namelijk al belast bij de dochtermaatschappij die de winst maakte.\n"
                     "Voorwaarden deelnemingsvrijstelling\n"
@@ -33,7 +32,7 @@ class LegislationTool:
             ),
             Legislation(
                 title="Wet op de omzetbelasting 1968, artikel 2",
-                content="Wet op de omzetbelasting 1968, artikel 2: het btw-tarief op goederen is 21%",
+                content="Het btw-tarief op goederen is 21%",
             ),
         ]
         # stateless

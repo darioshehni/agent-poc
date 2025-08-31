@@ -12,17 +12,18 @@ Rules:
 """
 
 from typing import Any, Dict, List
-from src.prompts import build_retrieval_message, REMOVAL_CONFIRMATION
+from src.models import Dossier
+from src.prompts import build_retrieval_message
 
 
-def present_outcomes(outcomes: List[Dict[str, Any]]) -> List[str]:
+def present_outcomes(outcomes: List[Dict[str, Any]], dossier: Dossier | None = None) -> List[str]:
     """Aggregate patches across outcomes and produce assistant messages.
 
     Returns a list of messages (strings) for the agent to append to the dossier
     conversation and include in the in-flight conversation list.
     """
     retrieval_titles: List[str] = []
-    removal_flag = False
+    removal_titles: List[str] = []
 
     for out in outcomes:
         patch = out.get("patch")
@@ -33,7 +34,7 @@ def present_outcomes(outcomes: List[Dict[str, Any]]) -> List[str]:
         if hasattr(patch, "add_case_law") and patch.add_case_law:
             retrieval_titles.extend([x.title for x in patch.add_case_law if getattr(x, "title", "").strip()])
         if hasattr(patch, "unselect_titles") and patch.unselect_titles:
-            removal_flag = True
+            removal_titles.extend([t for t in patch.unselect_titles if (t or "").strip()])
 
     messages: List[str] = []
     # De-duplicate titles but keep order
@@ -45,7 +46,18 @@ def present_outcomes(outcomes: List[Dict[str, Any]]) -> List[str]:
         lines.append("Zijn deze bronnen correct voor uw vraag?")
         messages.append("\n".join(lines))
 
-    if removal_flag:
-        messages.append(REMOVAL_CONFIRMATION)
+    if removal_titles:
+        lines = ["Ik heb de volgende bronnen uit de selectie gehaald:"]
+        for i, title in enumerate(removal_titles, 1):
+            lines.append(f"{i}. {title}")
+        messages.append("\n".join(lines))
+        # Optionally, show current selection after removal
+        if dossier is not None:
+            current = dossier.selected_titles()
+            if current:
+                lines2 = ["Huidige selectie:"]
+                for i, title in enumerate(current, 1):
+                    lines2.append(f"{i}. {title}")
+                messages.append("\n".join(lines2))
 
     return messages

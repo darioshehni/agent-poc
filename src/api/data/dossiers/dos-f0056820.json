@@ -1,0 +1,51 @@
+{
+  "dossier_id": "dos-f0056820",
+  "legislation": [
+    {
+      "title": "Wet op de vennootschapsbelasting 1969, artikel 13",
+      "content": "Wet op de vennootschapsbelasting 1969, artikel 13:\nDe deelnemingsvrijstelling is een belangrijke fiscale regeling in de Nederlandse vennootschapsbelasting.\nKort gezegd betekent het dat een bedrijf (bijvoorbeeld een BV of NV) geen belasting hoeft te betalen over winst (dividenden of verkoopwinsten) die het ontvangt uit een kwalificerende deelneming. Zo wordt dubbele belasting voorkomen: de winst is namelijk al belast bij de dochtermaatschappij die de winst maakte.\nVoorwaarden deelnemingsvrijstelling\nDe deelnemingsvrijstelling geldt meestal als:\nAandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in de dochtermaatschappij.\n"
+    },
+    {
+      "title": "Wet op de omzetbelasting 1968, artikel 2",
+      "content": "Wet op de omzetbelasting 1968, artikel 2: het btw-tarief op goederen is 21%"
+    }
+  ],
+  "case_law": [
+    {
+      "title": "ECLI:NL:HR:2020:123",
+      "content": "Hoge Raad ECLI:NL:HR:2020:123: geschil over btw-classificatie en tarieftoepassing. Het btw tarief op tandpasta is 0%"
+    },
+    {
+      "title": "ECLI:NL:RBAMS:2021:456",
+      "content": "Rechtbank Amsterdam ECLI:NL:RBAMS:2021:456: deelnemingsvrijstelling vereist een zakelijk motief."
+    }
+  ],
+  "selected_ids": [
+    "Wet op de vennootschapsbelasting 1969, artikel 13",
+    "Wet op de omzetbelasting 1968, artikel 2",
+    "ECLI:NL:HR:2020:123",
+    "ECLI:NL:RBAMS:2021:456"
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "hallo"
+    },
+    {
+      "role": "assistant",
+      "content": "Hallo! Hoe kan ik je vandaag helpen? Heb je een vraag over belastingen of iets anders waar ik bij kan assisteren?"
+    },
+    {
+      "role": "user",
+      "content": "wat is de btw op tandpasta?"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende bronnen:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2\n3. ECLI:NL:HR:2020:123\n4. ECLI:NL:RBAMS:2021:456\nZijn deze bronnen correct voor uw vraag?"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik heb geen specifieke bronnen kunnen vinden die direct betrekking hebben op het btw-tarief voor tandpasta. Zou je misschien meer details kunnen geven of de zoekopdracht kunnen aanscherpen?"
+    }
+  ]
+}

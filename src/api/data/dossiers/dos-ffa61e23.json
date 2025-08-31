@@ -1,0 +1,24 @@
+{
+  "dossier_id": "dos-ffa61e23",
+  "legislation": [],
+  "case_law": [],
+  "selected_ids": [],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "j"
+    },
+    {
+      "role": "assistant",
+      "content": "Hallo! Hoe kan ik je helpen vandaag? Heb je een vraag over belastingen of iets anders waar ik bij kan helpen?"
+    },
+    {
+      "role": "user",
+      "content": "hallo"
+    },
+    {
+      "role": "assistant",
+      "content": "Hallo! Hoe kan ik je vandaag helpen? Heb je een specifieke vraag over belastingen of iets anders waar je meer over wilt weten?"
+    }
+  ]
+}

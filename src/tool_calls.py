@@ -44,9 +44,9 @@ class ToolCallHandler:
             self._locks[dossier_id] = asyncio.Lock()
         return self._locks[dossier_id]
 
-    async def handle(
+    async def call_tool(
         self,
-        session: Dossier,
+        dossier: Dossier,
         messages: List[Dict[str, Any]],
         response_message: Dict[str, Any],
     ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -62,7 +62,7 @@ class ToolCallHandler:
         raw_calls = response_message["tool_calls"]
         if not isinstance(raw_calls, list):
             self.logger.error("tool_calls must be a list; got %s", type(raw_calls).__name__)
-            return messages
+            raise ValueError("tool_calls must be a list")
 
         normalized_calls: List[Dict[str, Any]] = []
         for raw in raw_calls:
@@ -111,7 +111,7 @@ class ToolCallHandler:
                 tool_fn = self.tools_map.get(function_name)
                 if not tool_fn:
                     raise ValueError(f"Unknown tool: {function_name}")
-                tool_result = await tool_fn(dossier=session, **arguments)
+                tool_result = await tool_fn(dossier=dossier, **arguments)
                 # For retrieval tools, avoid putting full content in the conversation.
                 # Minimal payload back to the LLM; we do not expose full content
                 result_payload = {"success": bool(getattr(tool_result, "success", True))}
@@ -154,7 +154,7 @@ class ToolCallHandler:
 
         # Apply all patches/messages under a per‑dossier lock
         try:
-            lock = self._get_lock(session.dossier_id)
+            lock = self._get_lock(dossier.dossier_id)
         except Exception:
             lock = None
 
@@ -162,11 +162,11 @@ class ToolCallHandler:
             for out in tool_outcomes:
                 patch = out.get("patch")
                 if isinstance(patch, DossierPatch):
-                    patch.apply(session)
+                    patch.apply(dossier)
                 # If a standalone message was returned, append it
                 msg = (out.get("message") or "").strip()
                 if msg:
-                    session.add_conversation_assistant(msg)
+                    dossier.add_conversation_assistant(msg)
 
         if lock is not None:
             async with lock:

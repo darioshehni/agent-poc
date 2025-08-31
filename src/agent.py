@@ -20,14 +20,15 @@ from typing import Dict, Any, List
 
 from src.config import OpenAIModels
 from src.sessions import SessionManager
-from src.llm import LlmChat
+from src.llm import LlmChat, LlmAnswer
 from src.tools.legislation_tool import LegislationTool
 from src.tools.case_law_tool import CaseLawTool
 from src.tools.answer_tool import AnswerTool
 from src.tools.remove_sources_tool import RemoveSourcesTool
-from src.context import ContextBuilder
 from src.presenter import present_outcomes
 from src.tool_calls import ToolCallHandler
+from src.models import Dossier
+from src.prompts import AGENT_SYSTEM_PROMPT
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -60,7 +61,6 @@ class TaxAssistant:
         self.session_manager = SessionManager()
         # tools map and their schemas for function-calling
         self.tools: Dict[str, Any] = {}
-        self.context_builder = ContextBuilder()
         self.tool_call_handler = None  # will be set after tools map is ready
 
         # Current session
@@ -71,7 +71,7 @@ class TaxAssistant:
         
         logger.info(f"TaxChatbot initialized for dossier: {dossier_id}")
     
-    def _setup_tools(self, leg_tool=None) -> None:
+    def _setup_tools(self) -> None:
         """Register all available tools."""
         
         # Create tool instances
@@ -111,19 +111,16 @@ class TaxAssistant:
         """
         
         try:
-            # Get dossier
             dossier = self.session_manager.get_or_create_dossier(self.dossier_id)
             
-            # Add user message to curated dossier conversation
-            dossier.add_conversation_user(user_input)
+            # Add user message to dossier conversation
+            dossier.add_conversation_user(content=user_input)
             
             logger.info(f"Processing message for dossier {self.dossier_id}: {user_input[:50]}...")
-            
 
-            # Process with AI
-            response = await self._process_with_ai(dossier)
+            response = await self._process_with_ai(dossier=dossier)
             
-            # Add response to curated dossier conversation
+            # Add assistant response to dossier conversation
             dossier.add_conversation_assistant(response)
             
             return response
@@ -133,25 +130,22 @@ class TaxAssistant:
             raise ValueError(f"Error processing message: {str(e)}")
             # return f"Er is een onverwachte fout opgetreden: {str(e)}. Probeer het opnieuw."
     
-    async def _process_with_ai(self, dossier) -> str:
+    async def _process_with_ai(self, dossier: Dossier) -> str:
         """Process one user turn using LLM + tools, returning assistant text."""
 
-        # Build system prompt
-        system_prompt = self.context_builder.build_system_prompt(dossier)
-        
         # Prepare user-visible conversation (curated) from dossier
-        conversation = [
-            {"role": "system", "content": system_prompt}
-        ]
-        conversation.extend(dossier.conversation)
+        system_prompt = [{"role": "system", "content": AGENT_SYSTEM_PROMPT}]
+        # Persisted, user-visible conversation (strings only)
+        conversation = dossier.conversation
+        # Working copy for LLM calls (may include tool_call objects and tool messages)
+        llm_messages: List[Dict[str, Any]] = list(conversation)
 
-        # Get available tools
         tools = self.tool_schemas
-        
+        logger.info(f"{conversation}")
         try:
             # Make initial AI request
-            llm_answer = await self.llm_client.chat(
-                messages=conversation,
+            llm_answer: LlmAnswer = await self.llm_client.chat(
+                messages=system_prompt + llm_messages,
                 model_name=OpenAIModels.GPT_4O.value,
                 tools=tools,
                 temperature=0.0,
@@ -161,74 +155,32 @@ class TaxAssistant:
             # Handle function calls
             if response_message["tool_calls"]:
                 # Execute tool calls and apply patches; handler returns list of outcomes
-                conversation, outcomes = await self.tool_call_handler.handle(dossier, conversation, response_message)
-
-                # Formulate user-visible assistant messages at the agent level (aggregate across patches)
-                for msg in present_outcomes(outcomes):
-                    dossier.add_conversation_assistant(msg)
-                    conversation.append({"role": "assistant", "content": msg})
-
-                # If AnswerTool produced an answer, append and return it directly
-                answer_texts: List[str] = [
-                    (out.get("data") or "").strip()
-                    for out in outcomes
-                    if out.get("function") == "generate_tax_answer" and isinstance(out.get("data"), str)
-                ]
-                answer_texts = [x for x in answer_texts if x]
-                if answer_texts:
-                    final_answer_text = answer_texts[-1]
-                    dossier.add_conversation_assistant(final_answer_text)
-                    return final_answer_text
-
-                # Persist happens in the WebSocket server after sending the reply
-
-                # Refresh system prompt with updated dossier context
-                conversation[0]["content"] = self.context_builder.build_system_prompt(dossier)
-
-                # Get final response from the LLM
-                final_answer = await self.llm_client.chat(
-                    messages=conversation,
-                    model_name=OpenAIModels.GPT_4O.value,
-                    temperature=0.0,
+                llm_messages, tool_calls = await self.tool_call_handler.call_tool(
+                    dossier=dossier,
+                    messages=llm_messages,
+                    response_message=response_message,
                 )
-                final_content = final_answer.answer
-                return final_content or "Ik kon geen antwoord genereren op basis van de beschikbare informatie."
+
+                # Formulate user-visible assistant message(s) (retrieval/removal confirmations)
+                outcome_messages = present_outcomes(tool_calls, dossier=dossier)
+                if outcome_messages:
+                    # Return these to the user now; do not proceed to final LLM answer
+                    # The WebSocket server expects a single string, so join if multiple
+                    combined = "\n\n".join(outcome_messages)
+                    return combined
+
+                # If AnswerTool produced an answer, return it directly
+                for tool_call in tool_calls:
+                    if tool_call["function"] == "generate_tax_answer":
+                        return tool_call["data"]
+
+                # If no outcome messages and no AnswerTool, provide a safe fallback
+                return "Ik heb bronnen verzameld, maar kon geen titels presenteren. Kunt u uw vraag iets aanscherpen?"
             else:
                 # Direct response without function calls
                 return response_message["content"] or "Ik kon geen passend antwoord genereren."
                 
         except Exception as e:
-            logger.error(f"Error in AI processing: {str(e)}", exc_info=True)
+            logger.error(f"Error in AI processing: {str(e)}")
             raise ValueError(f"Error in AI processing: {str(e)}")
             #return f"Er is een fout opgetreden bij het verwerken van uw vraag: {str(e)}"
-    
-    # Context building and tool-call execution are delegated to helpers
-    
-    
-    def get_dossier_info(self) -> Dict[str, Any]:
-        """Get information about the current dossier."""
-        dossier = self.session_manager.get_dossier(self.dossier_id)
-        if not dossier:
-            return {"error": "No active session"}
-        
-        info = {"dossier_id": dossier.dossier_id,
-                "message_count": len(dossier.conversation),
-                "selected_titles": dossier.selected_titles(),
-                "unselected_titles": dossier.unselected_titles()}
-
-        # Add selected vs unselected titles for quick confirmation UIs
-
-        return info
-
-    def reset_dossier(self) -> str:
-        """Reset the current dossier."""
-        self.session_manager.delete_dossier(self.dossier_id)
-        logger.info(f"Reset dossier: {self.dossier_id}")
-        return "Dossier is gereset. U kunt een nieuwe vraag stellen."
-
-    def list_available_tools(self) -> List[str]:
-        """Get list of available tools."""
-        return list(self.tools.keys())
-
-    
-    # presenter moved to src/presenter.py

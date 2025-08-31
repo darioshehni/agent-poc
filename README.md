@@ -60,7 +60,7 @@ Important: large source texts never enter the chat transcript; they stay in the 
 
 ## Orchestration (Agent + Handler)
 
-- Agent (`TaxChatbot`):
+- Agent (`TaxAssistant`):
   - Builds the messages from the dossier, calls the LLM, delegates tool execution, presents patches as user-facing assistant messages, and returns the final answer.
   - If AnswerTool produced an answer, the agent appends it to the conversation and returns it directly (no extra LLM call).
 - ToolCallHandler:

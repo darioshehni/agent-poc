@@ -20,6 +20,8 @@ from pydantic import BaseModel
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 
 class LlmAnswer(BaseModel):
     """Unified LLM answer wrapper returned by LlmChat.chat.
@@ -66,11 +68,10 @@ class LlmChat:
     ) -> LlmAnswer:
         """Chat; `messages` may be a full list or a single user string."""
 
-        # Accept a single string or a full message list
+        if not messages:
+            raise ValueError ("messages cannot be empty")
         if isinstance(messages, str):
             messages = [{"role": "user", "content": messages}]
-        if not isinstance(messages, list) or not messages:
-            raise ValueError("messages must be a non-empty list or a string")
 
         params: Dict[str, Any] = {
             "model": model_name,
@@ -84,25 +85,29 @@ class LlmChat:
                 params["tool_choice"] = tool_choice
 
         try:
-            resp = await self._openai_client.chat.completions.create(**params)
-            msg = resp.choices[0].message
+            response = await self._openai_client.chat.completions.create(**params)
+            msg = response.choices[0].message
             tool_calls: List[Dict[str, Any]] = []
-            for tc in (msg.tool_calls or []):
+            for tool_call in (msg.tool_calls or []):
                 try:
                     tool_calls.append({
-                        "id": getattr(tc, "id", None),
-                        "type": getattr(tc, "type", "function"),
+                        "id": getattr(tool_call, "id", None),
+                        "type": getattr(tool_call, "type", "function"),
                         "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments or "{}",
+                            "name": tool_call.function.name,
+                            "arguments": tool_call.function.arguments or "{}",
                         },
                     })
                 except Exception:
+                    logger.warning("Error parsing tool call, using fallback minimal shape")
                     # Fallback minimal shape
                     tool_calls.append({
-                        "function": {"name": getattr(getattr(tc, 'function', object()), 'name', ''), "arguments": getattr(getattr(tc, 'function', object()), 'arguments', '{}')}
+                        "function": {"name": getattr(getattr(tool_call, 'function', object()), 'name', ''), "arguments": getattr(getattr(tool_call, 'function', object()), 'arguments', '{}')}
                     })
-            return LlmAnswer(answer=msg.content or "", tool_calls=tool_calls)
+            # Content may be None when the model chooses tool_calls.
+            # Ensure we always return a string to satisfy LlmAnswer.
+            answer_text: str = msg.content if isinstance(getattr(msg, "content", None), str) else ""
+            return LlmAnswer(answer=answer_text, tool_calls=tool_calls)
         except Exception as e:
             self.logger.error(f"Chat completion failed: {e}")
             raise
@@ -112,17 +117,65 @@ class LlmChat:
         messages: List[Dict[str, Any]] | str,
         model_name: str,
         response_format: Type[BaseModel],
-    ) -> type[BaseModel]:
-        """Structured call that returns a parsed Pydantic model (no tools)."""
+    ) -> BaseModel:
+        """Structured call that returns a parsed Pydantic model (no tools).
+
+        Preferred path: use Responses API structured parsing when available.
+        Fallback: prompt Chat Completions to emit strict JSON and parse locally.
+        """
+        # Try Responses API first (if available in installed SDK)
         try:
-            if isinstance(messages, str):
-                messages = [{"role": "user", "content": messages}]
-            resp = await self._openai_client.responses.parse(  # type: ignore[attr-defined]
-                model=model_name,
-                input=messages,
-                text_format=response_format,
-            )
-            return resp.output_parsed
+            client_has_responses = hasattr(self._openai_client, "responses")
+            if client_has_responses:
+                if isinstance(messages, str):
+                    messages = [{"role": "user", "content": messages}]
+                resp = await self._openai_client.responses.parse(  # type: ignore[attr-defined]
+                    model=model_name,
+                    input=messages,
+                    text_format=response_format,
+                )
+                return resp.output_parsed
         except Exception as e:
+            # Log and continue to fallback
             self.logger.error(f"Structured chat parse failed: {e}")
+
+        # Fallback to Chat Completions: ask for JSON only and parse
+        import json
+        try:
+            user_content: str
+            if isinstance(messages, str):
+                user_content = messages
+            else:
+                # Extract last user content if a list was provided
+                user_msgs = [m for m in messages if m.get("role") == "user"] if isinstance(messages, list) else []
+                user_content = user_msgs[-1]["content"] if user_msgs else (messages[-1]["content"] if messages else "")  # type: ignore[index]
+
+            sys_prompt = (
+                "Je produceert uitsluitend geldige JSON die exact voldoet aan dit schema: "
+                "{\"titles\": [string, ...]}. Geen extra tekst of uitleg."
+            )
+            cc_messages = [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": user_content},
+            ]
+            cc_resp = await self._openai_client.chat.completions.create(
+                model=model_name,
+                messages=cc_messages,
+                temperature=0,
+            )
+            text = getattr(cc_resp.choices[0].message, "content", None) or "{}"
+            # Attempt direct JSON parse
+            try:
+                obj = json.loads(text)
+            except json.JSONDecodeError:
+                # Try to locate a JSON object substring
+                start = text.find("{")
+                end = text.rfind("}")
+                if start != -1 and end != -1 and end > start:
+                    obj = json.loads(text[start : end + 1])
+                else:
+                    raise
+            return response_format.model_validate(obj)
+        except Exception as e:
+            self.logger.error(f"Structured chat (fallback) failed: {e}")
             raise
