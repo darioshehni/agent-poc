@@ -40,7 +40,7 @@ class AnswerTool:
     
     @property
     def description(self) -> str:
-        return "Generate a comprehensive answer to a tax question using dossier sources (legislation and case law)"
+        return "Generate an answer to a tax question using dossier sources (legislation and case law)"
     
     @property
     def parameters_schema(self) -> Dict[str, Any]:
@@ -49,7 +49,7 @@ class AnswerTool:
             "properties": {
                 "question": {
                     "type": "string",
-                    "description": "Original tax question from the user"
+                    "description": "Original tax question from the user. Include any context that could be relevant or helpful for answering the question correctly."
                 }
             },
             "required": ["question"]
@@ -92,7 +92,7 @@ class AnswerTool:
             
             llm_answer: LlmAnswer = await self.llm_client.chat(
                 messages=prompt,
-                model_name=OpenAIModels.GPT_4O_MINI.value,
+                model_name=OpenAIModels.GPT_4O.value,
                 temperature=0.0,
             )
             answer = llm_answer.answer

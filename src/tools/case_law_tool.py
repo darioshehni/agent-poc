@@ -39,7 +39,7 @@ class CaseLawTool:
     
     @property
     def description(self) -> str:
-        return "Retrieve relevant Dutch tax case law and jurisprudence for a query"
+        return "Retrieve relevant case law and jurisprudence for a query"
     
     @property
     def parameters_schema(self) -> Dict[str, Any]:
@@ -48,7 +48,7 @@ class CaseLawTool:
             "properties": {
                 "query": {
                     "type": "string", 
-                    "description": "Tax question or topic to search case law for"
+                    "description": "Tax question or topic to search case laws for. Should include any context that could be relevant or helpful in deciding what case law to return."
                 }
             },
             "required": ["query"]

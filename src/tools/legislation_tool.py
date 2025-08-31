@@ -44,7 +44,7 @@ class LegislationTool:
     
     @property
     def description(self) -> str:
-        return "Retrieve relevant Dutch tax legislation for a query"
+        return "Retrieve relevant legislation for a query."
     
     @property 
     def parameters_schema(self) -> Dict[str, Any]:
@@ -53,7 +53,7 @@ class LegislationTool:
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Tax question or topic to search legislation for"
+                    "description": "Tax question or topic to search legislation for. Should include any context that could be relevant or helpful in deciding what legislation to return."
                 }
             },
             "required": ["query"]

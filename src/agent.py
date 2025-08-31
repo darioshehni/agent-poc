@@ -152,7 +152,7 @@ class TaxAssistant:
             # Make initial AI request
             llm_answer = await self.llm_client.chat(
                 messages=conversation,
-                model_name=OpenAIModels.GPT_4O_MINI.value,
+                model_name=OpenAIModels.GPT_4O.value,
                 tools=tools,
                 temperature=0.0,
             )
@@ -188,7 +188,7 @@ class TaxAssistant:
                 # Get final response from the LLM
                 final_answer = await self.llm_client.chat(
                     messages=conversation,
-                    model_name=OpenAIModels.GPT_4O_MINI.value,
+                    model_name=OpenAIModels.GPT_4O.value,
                     temperature=0.0,
                 )
                 final_content = final_answer.answer

@@ -41,7 +41,7 @@ class RemoveSourcesTool:
 
     @property
     def description(self) -> str:
-        return "Map a removal instruction to exact dossier source titles to unselect"
+        return "Given a user message specifying which source have to be removed, this tool removes those tools from the dossier."
 
     @property
     def parameters_schema(self) -> dict[str, Any]:
@@ -50,7 +50,7 @@ class RemoveSourcesTool:
             "properties": {
                 "instruction": {
                     "type": "string",
-                    "description": "Returns a list of source that have to be removed based on user instruction. The user gives a natural language instruction that explains which documents should be removed, e.g., 'verwijder artikel 13 en ECLI:234:456 uit de selectie' This tool returns a list of title names that have to be removed based on the instructions."
+                    "description": "A natural language instruction that explains which documents should be removed, e.g., 'verwijder artikel 13 en ECLI:234:456 uit de selectie'. "
                 }
             },
             "required": ["instruction"]
@@ -74,7 +74,7 @@ class RemoveSourcesTool:
 
             document_titles: DocumentTitles = await self.llm_client.chat_structured(
                 messages=prompt,
-                model_name=OpenAIModels.GPT_4O_MINI.value,
+                model_name=OpenAIModels.GPT_4O.value,
                 response_format=DocumentTitles,
             )
 
