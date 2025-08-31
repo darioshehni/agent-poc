@@ -22,7 +22,7 @@
   ],
   "selected_ids": [
     "ECLI:NL:HR:2020:123",
-    "ECLI:NL:RBAMS:2021:456"
+    "Wet op de vennootschapsbelasting 1969, artikel 13"
   ],
   "conversation": [
     {
@@ -48,6 +48,46 @@
     {
       "role": "assistant",
       "content": "```markdown\n## BRONNEN:\n- ECLI:NL:HR:2020:123\n\n## ANALYSE:\nDe jurisprudentie ECLI:NL:HR:2020:123 behandelt de btw-classificatie en tarieftoepassing specifiek voor tandpasta. Volgens deze uitspraak is het btw-tarief op tandpasta vastgesteld op 0%.\n\n## ANTWOORD:\nOp basis van de beschikbare jurisprudentie (ECLI:NL:HR:2020:123) is het btw-tarief op tandpasta 0%.\n```"
+    },
+    {
+      "role": "user",
+      "content": "wat is deelnemingsvrijstelling"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende bronnen:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2\n3. ECLI:NL:HR:2020:123\n4. ECLI:NL:RBAMS:2021:456\nZijn deze bronnen correct voor uw vraag?"
+    },
+    {
+      "role": "user",
+      "content": "nee niet goed"
+    },
+    {
+      "role": "assistant",
+      "content": "Kunt u aangeven hoe ik de zoekopdracht kan aanscherpen om de juiste bronnen voor uw vraag over de deelnemingsvrijstelling te vinden? Bijvoorbeeld, specifieke aspecten van de deelnemingsvrijstelling die u wilt onderzoeken?"
+    },
+    {
+      "role": "user",
+      "content": "ja"
+    },
+    {
+      "role": "assistant",
+      "content": "Dank u! Laten we opnieuw beginnen. Wat zijn de specifieke aspecten van de deelnemingsvrijstelling die u wilt onderzoeken? Bijvoorbeeld, wilt u weten hoe het werkt, welke voorwaarden van toepassing zijn, of hoe het in de praktijk wordt toegepast?"
+    },
+    {
+      "role": "user",
+      "content": "deelnemingvrijstelling heeft een grens, wat is die grens"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende bronnen:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2\n3. ECLI:NL:HR:2020:123\n4. ECLI:NL:RBAMS:2021:456\nZijn deze bronnen correct voor uw vraag?"
+    },
+    {
+      "role": "user",
+      "content": "ja artikel 12 en 2 heb ik nodig, en ecli 123"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik heb de volgende bronnen uit de selectie gehaald:\n1. Wet op de omzetbelasting 1968, artikel 2\n2. ECLI:NL:RBAMS:2021:456\n\nHuidige selectie:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. ECLI:NL:HR:2020:123"
     }
   ]
 }

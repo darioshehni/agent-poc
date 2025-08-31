@@ -84,7 +84,7 @@ class ToolCallHandler:
 
                 # Strict argument contract: tools must receive 'query'
                 fname = (function_name or "").strip()
-                if fname in {"remove_sources", "generate_tax_answer"}:
+                if fname in {"remove_sources", "generate_tax_answer", "restore_sources"}:
                     q = arguments.get("query")
                     if not isinstance(q, str) or not q.strip():
                         raise ValueError(f"{fname} requires a non-empty 'query' parameter")

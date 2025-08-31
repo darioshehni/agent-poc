@@ -24,6 +24,7 @@ def present_outcomes(outcomes: List[Dict[str, Any]], dossier: Dossier | None = N
     """
     retrieval_titles: List[str] = []
     removal_titles: List[str] = []
+    restored_titles: List[str] = []
 
     for out in outcomes:
         patch = out.get("patch")
@@ -35,6 +36,8 @@ def present_outcomes(outcomes: List[Dict[str, Any]], dossier: Dossier | None = N
             retrieval_titles.extend([x.title for x in patch.add_case_law if getattr(x, "title", "").strip()])
         if hasattr(patch, "unselect_titles") and patch.unselect_titles:
             removal_titles.extend([t for t in patch.unselect_titles if (t or "").strip()])
+        if hasattr(patch, "select_titles") and patch.select_titles:
+            restored_titles.extend([t for t in patch.select_titles if (t or "").strip()])
 
     messages: List[str] = []
     # De-duplicate titles but keep order
@@ -52,6 +55,22 @@ def present_outcomes(outcomes: List[Dict[str, Any]], dossier: Dossier | None = N
             lines.append(f"{i}. {title}")
         messages.append("\n".join(lines))
         # Optionally, show current selection after removal
+        if dossier is not None:
+            current = dossier.selected_titles()
+            if current:
+                lines2 = ["Huidige selectie:"]
+                for i, title in enumerate(current, 1):
+                    lines2.append(f"{i}. {title}")
+                messages.append("\n".join(lines2))
+
+    # Only show restoration message when there is no simultaneous retrieval list.
+    # During retrieval, tools also set select_titles; we don't want a separate
+    # restoration message in that case.
+    if restored_titles and not retrieval_titles:
+        lines = ["Ik heb de volgende bronnen (weer) geselecteerd:"]
+        for i, title in enumerate(restored_titles, 1):
+            lines.append(f"{i}. {title}")
+        messages.append("\n".join(lines))
         if dossier is not None:
             current = dossier.selected_titles()
             if current:

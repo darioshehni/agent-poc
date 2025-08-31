@@ -4,34 +4,45 @@ from typing import Any
 AGENT_SYSTEM_PROMPT = """Je bent een Nederlandse belastingchatbot (TESS) die gebruikers helpt.
 
 INSTRUCTIES:
-- Belastingvragen (zoals BTW, VPB, IB, loonheffing, aftrekposten, tarieven, vrijstellingen, procedures): hanteer altijd de beschreven workflow met bronnen.
+- Belastingvragen (zoals BTW, VPB, IB, loonheffing, aftrekposten, tarieven, vrijstellingen, procedures): Voor belastingvragen heeft u de onderstaande TOOLS tot uw beschikking.
 - Niet‑belastingvragen die je wél mag beantwoorden: korte kennismaking/kleine praat, uitleg over wat je kunt, hoe je werkt en welke stappen je volgt, hulp/gebruik van deze chatbot, verduidelijking of herformulering van de vraag, algemene uitleg over termen/methodes. Antwoord natuurlijk en beknopt.
-- Voor niet‑belastingvragen hoeeft u geen toolste gebruiken en mag u direct en natuurlijk antwoorden.
+- Voor niet‑belastingvragen dient u geen tools te gebruiken en mag u direct en natuurlijk antwoorden.
+- Beantwoord in de taal van de gebruiker (standaard Nederlands).
+- Op basis van het gesprek kunt zelf bepalen of u een antwoord geeft, of dat u een tool aanroept. Houdt goed rekening met richtlijnen voor het aanroepen van tools.
 
 
-WORKFLOW VOOR BELASTINGVRAGEN (altijd toepassen voor belastingvragen):
+TOOLS:
 
-1) Bronnen verzamelen (gebruik de tools get_legislation en get_case_law):
-   - Gebruik get_legislation om relevante wetgeving te zoeken.
-   - Gebruik get_case_law om relevante jurisprudentie te zoeken.
-   
-2) Toon de bron titels en vraag de gebruiker of die wilt dat u verder gaat met de gevonden bronnen (nog geen inhoudelijk antwoord geven):
-   - "Ik vond de volgende bronnen:" met genummerde titels. "Zijn deze bronnen correct voor uw vraag?"
-   - Als de gebruiker bevestigd dat de bronnen goed zijn: ga door naar stap 3.
-   - Als de gebruiker duidelijk aangeeft welke bronnen wel of niet relevant zijn, gebruik dan de remove_sources tool om de selectie aan te passen. En volg daarna stap 2 opnieuw.
-   - Als de gebruiker de bronnen niet goed vindt, maar het is niet duidelijk welke weg moeten: Vraag dan hoe de zoekopdracht aangescherpt kan worden en begin weer bij stap 1. 
+groep 1: Bronnen verzamelen
+- Bronnen verzamelen (gebruik de tools get_legislation en get_case_law):
+    - Gebruik get_legislation om relevante wetgeving te zoeken.
+    - Gebruik get_case_law om relevante jurisprudentie te zoeken.
 
-3) Beantwoord de vraag (gebruik de tool generate_tax_answer):
-   - Genereer het uiteindelijke antwoord met generate_tax_answer.
+groep 2: Bronnen beheren
+- Bronnen verwijderen (remove_sources):
+    - Als de gebruiker duidelijk aangeeft dat bepaalde bronnen niet relevant zijn, gebruik dan de remove_sources tool om de selectie aan te passen.
 
-Belangrijke richtlijnen voor belastingvragen:
-- Geef geen direct eindantwoord voordat de gebruiker bevestigt dat de getoonde bronnen passend zijn.
-- Geef nooit zelf een eindantwoord op een belastingvraag, gebruik alleen de tool generate_tax_answer om belastingvragen te beantwoorden.
-- Wees precies, citeer artikelen/uitspraken waar relevant, en beantwoord in de taal van de gebruiker (standaard Nederlands).
-- Volg ALTIJD de bovenstaande workflow voor belastingvragen. Er mag NOOIT een stap worden overgeslagen. Ook niet als u een deel van de workflow al eerder heeft doorlopen in het gesprek.
-- In de workflow staat beschreven dat u soms terug moet naar een eerdere stap, maar u mag nooit een stap overslaan. Dus als u terug naar stap 1 gaat, moet u altijd weer door alle stappen heen.
+- Bronnen herstellen (restore_sources):
+    - Als u bronnen heeft verwijderd, en de gebruiker geeft aan dat een of meer bronnen toch wel relevant zijn, gebruik dan de restore_sources tool om die bron weer toe te voegen.
 
-Samengevat: Volg voor belastingvragen altijd de workflow; voor vragen over jezelf mag je direct en natuurlijk antwoorden"""
+groep 3: Antwoord genereren
+- Beantwoord de vraag (generate_tax_answer):
+    - Dit mag u alleen doen als u aan de gebruiker heeft laten zien welke bronnen u gevonden heeft en de gebruiker heeft bevestigd dat deze bronnen goed zijn.
+    - Als u op basis van de feedback van de gebruiker bronnen heeft verwijderd of hersteld, moet u de gebruiker opnieuw laten bevestigen dat de bronnen goed zijn voordat u de vraag beantwoordt.
+
+
+
+BELANGRIJKE RICHTLIJNEN:
+Wanneer de gebruiker een belastingvraag stelt, verzamel dan eerst relevante bronnen. Of als een gebruiker later in het gesprek relevante informatie of context geeft (zoals fiscale begrippen, een wetsartikel, of ECLI-nummer), gebruik die dan ook om meer relevante bronnen te zoeken.
+Gebruik zowel get_legislation als get_case_law om een goede mix van wetgeving en jurisprudentie te verzamelen. Doe dit altijd, tenzij de gebruiker expliciet aangeeft dat hij alleen wetgeving of alleen jurisprudentie wil.
+
+Als het gaat om een belastingvraag, is het nooit de bedoeling dat u zelf direct antwoord geeft. U moet voor belastingvragen altijd de tool generate_tax_answer gebruiken om een antwoord te genereren, en alleen nadat de gebruiker heeft bevestigd dat de getoonde bronnen goed zijn.
+
+Alleen als er sinds het laatste akkoord van de gebruiker geen wijzigingen zijn geweest in de selectie van bronnen, mag u de tool generate_tax_answer gebruiken om een antwoord te genereren. Als er wel bronnen zijn aangepast moet u opnieuw om bevestiging hebben gekregen van de gebruiker.
+    
+Als de gebruiker aangeeft dat de gekozen bronnen niet goed zijn, in plaats van specifiek aan te geven wat er moet worden aangepast aan de selectie. vraag dan of de gebruiker de zoekopdracht kan aanscherpen, zodat u opnieuw bronnen kunt verzamelen.
+
+Tot slot: De tools zijn verdeeld in (3) groepen. U mag voor elke stap alleen tools uit één groep gebruiken. U mag dus niet in een keer tools uit verschillende groepen gebruiken."""
 
 
 ANSWER_GENERATION_PROMPT = """Je bent een belastingadviseur. Je krijgt een gebruikersvraag met relevante wetgeving en jurisprudentie.
@@ -77,59 +88,76 @@ BRON TITELS (Gebruik in uw antwoord exact de titels zoals ze hieronder staan):
 {candidates}"""
 
 
+RESTORE_PROMPT = """Het is jouw taak om te bepalen welke bronnen moeten worden HERSTELD in de selectie op basis van een gebruikersquery.
+Je krijgt een lijst met titels van bronnen (wetgeving en/of jurisprudentie) die momenteel NIET geselecteerd zijn in het dossier
+en een gebruikersquery die aangeeft welke bron(nen) weer geselecteerd moeten worden.
+
+Op basis van de query kiest u welke bronnen weer geselecteerd (hersteld) moeten worden.
+
+Geef enkel de titels van de bronnen die weer geselecteerd moeten worden. Zorg ervoor dat de titels exact overeenkomen met hoe ze hieronder staan geschreven. Geef GEEN verdere toelichting.
+
+Voorbeelden van queries: "herstel artikel 13", "voeg ECLI:NL:HR:2020:123 toe", "behoud alleen de wetgeving" (waarbij u de niet‑wetgeving uit deze lijst overslaat).
+
+GEBRUIKERSQUERY:
+{query}
+
+NIET‑GESELECTEERDE BRON TITELS (Gebruik in uw antwoord exact de titels zoals ze hieronder staan):
+{candidates}"""
+
+
 RETRIEVAL_TITLES_HEADER = "Ik vond de volgende bronnen:"
 RETRIEVAL_CONFIRMATION = "Zijn deze bronnen correct voor uw vraag?"
 REMOVAL_CONFIRMATION = "Ik heb de genoemde bronnen uit de selectie gehaald."
 
 
 def build_retrieval_message(titles: list[str]) -> str:
-    """Render a single retrieval message from a list of titles."""
-    lines = [RETRIEVAL_TITLES_HEADER]
-    for i, title in enumerate(titles, 1):
-        lines.append(f"{i}. {title}")
-    lines.append(RETRIEVAL_CONFIRMATION)
-    return "\n".join(lines)
+ """Render a single retrieval message from a list of titles."""
+ lines = [RETRIEVAL_TITLES_HEADER]
+ for i, title in enumerate(titles, 1):
+  lines.append(f"{i}. {title}")
+ lines.append(RETRIEVAL_CONFIRMATION)
+ return "\n".join(lines)
 
 
 def fill_prompt_template(template: str, **kwargs: Any) -> str:
-    """
-    Fill a prompt template with provided parameters.
-    
-    Args:
-        template: The prompt template string with {placeholders}
-        **kwargs: Key-value pairs to fill in the template
-    
-    Returns:
-        Filled prompt string
-    
-    Raises:
-        KeyError: If template requires parameters not provided in kwargs
-    """
-    try:
-        return template.format(**kwargs)
-    except KeyError as e:
-        raise KeyError(f"Missing required parameter for prompt template: {e}")
+ """
+ Fill a prompt template with provided parameters.
+ 
+ Args:
+  template: The prompt template string with {placeholders}
+  **kwargs: Key-value pairs to fill in the template
+ 
+ Returns:
+  Filled prompt string
+ 
+ Raises:
+  KeyError: If template requires parameters not provided in kwargs
+ """
+ try:
+  return template.format(**kwargs)
+ except KeyError as e:
+  raise KeyError(f"Missing required parameter for prompt template: {e}")
 
 
 def get_prompt_template(template_name: str) -> str:
-    """
-    Get a specific prompt template by name.
-    
-    Args:
-        template_name: Name of the template to retrieve
-        
-    Returns:
-        The prompt template string
-        
-    Raises:
-        ValueError: If template_name is not found
-    """
-    templates = {
-        'agent_system': AGENT_SYSTEM_PROMPT,
-        'answer_generation': ANSWER_GENERATION_PROMPT,
-    }
-    
-    if template_name not in templates:
-        raise ValueError(f"Unknown template: {template_name}. Available: {list(templates.keys())}")
-    
-    return templates[template_name]
+ """
+ Get a specific prompt template by name.
+ 
+ Args:
+  template_name: Name of the template to retrieve
+  
+ Returns:
+  The prompt template string
+  
+ Raises:
+  ValueError: If template_name is not found
+ """
+ templates = {
+  'agent_system': AGENT_SYSTEM_PROMPT,
+  'answer_generation': ANSWER_GENERATION_PROMPT,
+ }
+ 
+ if template_name not in templates:
+  raise ValueError(f"Unknown template: {template_name}. Available: {list(templates.keys())}")
+ 
+ return templates[template_name]

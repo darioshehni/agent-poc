@@ -27,6 +27,7 @@ from src.tools.legislation_tool import LegislationTool
 from src.tools.case_law_tool import CaseLawTool
 from src.tools.answer_tool import AnswerTool
 from src.tools.remove_sources_tool import RemoveSourcesTool
+from src.tools.restore_sources_tool import RestoreSourcesTool
 from src.presenter import present_outcomes
 from src.tool_calls import ToolCallHandler
 from src.models import Dossier
@@ -73,6 +74,7 @@ class TaxAssistant:
         # Create tool instances
         answer_tool = AnswerTool(llm_client=self.llm_client)
         remove_tool = RemoveSourcesTool(llm_client=self.llm_client)
+        restore_tool = RestoreSourcesTool(llm_client=self.llm_client)
         leg_tool = LegislationTool()
         case_tool = CaseLawTool()
 
@@ -81,6 +83,7 @@ class TaxAssistant:
             case_tool.name: case_tool.execute,
             answer_tool.name: answer_tool.execute,
             remove_tool.name: remove_tool.execute,
+            restore_tool.name: restore_tool.execute,
         }
         # Build function-calling schemas
         self.tool_schemas = [
@@ -88,6 +91,7 @@ class TaxAssistant:
             {"type": "function", "function": {"name": case_tool.name, "description": case_tool.description, "parameters": case_tool.parameters_schema}},
             {"type": "function", "function": {"name": answer_tool.name, "description": answer_tool.description, "parameters": answer_tool.parameters_schema}},
             {"type": "function", "function": {"name": remove_tool.name, "description": remove_tool.description, "parameters": remove_tool.parameters_schema}},
+            {"type": "function", "function": {"name": restore_tool.name, "description": restore_tool.description, "parameters": restore_tool.parameters_schema}},
         ]
                 # Initialize the handler once tools map is ready
         self.tool_call_handler = ToolCallHandler(self.tools)

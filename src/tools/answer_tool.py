@@ -101,7 +101,7 @@ class AnswerTool:
             if not answer:
                 raise ValueError("LLM generated empty response")
             
-            # Return answer text; agent will append it to the conversation
+            # Return answer text. Agent will append it to the conversation
             result = ToolResult(success=True, data=answer.strip())
             
             logger.info("Answer generated successfully")

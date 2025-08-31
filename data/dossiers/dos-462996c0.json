@@ -1,0 +1,28 @@
+{
+  "dossier_id": "dos-462996c0",
+  "legislation": [
+    {
+      "title": "Wet op de vennootschapsbelasting 1969, artikel 13",
+      "content": "De deelnemingsvrijstelling is een belangrijke fiscale regeling in de Nederlandse vennootschapsbelasting.\nKort gezegd betekent het dat een bedrijf (bijvoorbeeld een BV of NV) geen belasting hoeft te betalen over winst (dividenden of verkoopwinsten) die het ontvangt uit een kwalificerende deelneming. Zo wordt dubbele belasting voorkomen: de winst is namelijk al belast bij de dochtermaatschappij die de winst maakte.\nVoorwaarden deelnemingsvrijstelling\nDe deelnemingsvrijstelling geldt meestal als:\nAandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in de dochtermaatschappij.\n"
+    },
+    {
+      "title": "Wet op de omzetbelasting 1968, artikel 2",
+      "content": "Het btw-tarief op goederen is 21%"
+    }
+  ],
+  "case_law": [],
+  "selected_ids": [
+    "Wet op de vennootschapsbelasting 1969, artikel 13",
+    "Wet op de omzetbelasting 1968, artikel 2"
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "wat is de btw op tandpasta"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende bronnen:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2\nZijn deze bronnen correct voor uw vraag?\n\nIk heb de volgende bronnen (weer) geselecteerd:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2\n\nHuidige selectie:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2"
+    }
+  ]
+}
