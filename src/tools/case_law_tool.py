@@ -5,7 +5,7 @@ Returns a DossierPatch that adds the sample case law and selects their titles.
 The agent is responsible for presenting user-facing messages.
 """
 
-from typing import Dict, Any, List
+from typing import Any
 import logging
 
 from src.models import CaseLaw, DossierPatch, ToolResult
@@ -17,7 +17,7 @@ class CaseLawTool:
     """Tool for retrieving relevant Dutch tax case law and jurisprudence."""
     
     def __init__(self):
-        self._sample_case_law: List[CaseLaw] = [
+        self._sample_case_law: list[CaseLaw] = [
             CaseLaw(
                 title="ECLI:NL:HR:2020:123",
                 content=(
@@ -42,7 +42,7 @@ class CaseLawTool:
         return "Retrieve relevant case law and jurisprudence for a query"
     
     @property
-    def parameters_schema(self) -> Dict[str, Any]:
+    def parameters_schema(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {
@@ -70,5 +70,3 @@ class CaseLawTool:
         except Exception as e:
             logger.error(f"CaseLawTool failed: {e}", exc_info=True)
             return ToolResult(success=False, data=None, error_message=str(e))
-    
-    # No search helpers in dummy implementation

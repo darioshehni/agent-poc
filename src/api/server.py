@@ -10,6 +10,7 @@ Per-connection flow:
 
 
 import logging
+import os
 from uuid import uuid4
 from typing import Any, Dict
 
@@ -47,15 +48,7 @@ async def websocket_chat(ws: WebSocket) -> None:
         # Create a fresh chatbot per connection; session manager loads the dossier if present
         assistant = TaxAssistant(dossier_id=dossier_id)
         response_text = await assistant.process_message(message)
-
         await ws.send_json({"status": "success", "response": response_text, "dossier_id": dossier_id})
-        # Persist the updated dossier snapshot to data/dossiers
-        try:
-            dossier = assistant.session_manager.get_dossier(dossier_id)
-            if dossier:
-                assistant.session_manager.save_dossier(dossier)
-        except Exception as e:
-            logger.warning(f"Failed to save dossier for id {dossier_id}: {e}")
         await ws.close()
     except Exception as e:
         try:
@@ -68,4 +61,8 @@ async def websocket_chat(ws: WebSocket) -> None:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("src.api.server:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
+    uvicorn.run(app="src.api.server:app",
+                host=os.environ["API_HOST"],
+                port=int(os.environ["API_PORT"]),
+                reload=True,
+                log_level=os.environ["LOG_LEVEL"])

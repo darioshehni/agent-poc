@@ -21,9 +21,9 @@ class DocumentTitles(BaseModel):
 
 
 class DossierPatch(BaseModel):
-    """A typed, idempotent patch describing changes to apply to a Dossier.
+    """A typed object describing changes to apply to a Dossier.
 
-    Tools return patches; the agent/handler applies them in order under a lock.
+    Tools return patches. After the tools are finished the Dossier gets patched.
     """
     add_legislation: list[Legislation] = Field(default_factory=list)
     add_case_law: list[CaseLaw] = Field(default_factory=list)
@@ -36,7 +36,7 @@ class DossierPatch(BaseModel):
         if self.add_legislation:
             existing_titles = {leg.title for leg in dossier.legislation}
             for item in self.add_legislation:
-                title = (item.title or "").strip()
+                title = item.title.strip()
                 if title and title not in existing_titles:
                     dossier.legislation.append(item)
                     existing_titles.add(title)
@@ -45,7 +45,7 @@ class DossierPatch(BaseModel):
         if self.add_case_law:
             existing_titles = {case_law.title for case_law in dossier.case_law}
             for item in self.add_case_law:
-                title = (item.title or "").strip()
+                title = item.title.strip()
                 if title and title not in existing_titles:
                     dossier.case_law.append(item)
                     existing_titles.add(title)
@@ -114,12 +114,6 @@ class Dossier(BaseModel):
     def from_dict(d: dict[str, Any]) -> "Dossier":
         return Dossier.model_validate(d)
 
-    def _texts_from_legislation(self, items: list[Legislation]) -> list[str]:
-        return [getattr(x, 'content', str(x)) for x in items]
-
-    def _texts_from_case_law(self, items: list[CaseLaw]) -> list[str]:
-        return [getattr(x, 'content', str(x)) for x in items]
-
     def get_selected_legislation(self) -> list[Legislation]:
         """Return selected legislation items."""
         return [l for l in self.legislation if l.title in self.selected_ids]
@@ -149,14 +143,3 @@ class Dossier(BaseModel):
     def add_conversation_assistant(self, content: str) -> None:
         if isinstance(content, str) and content.strip():
             self.conversation.append({"role": "assistant", "content": content})
-
-
-class RemovalDecision(BaseModel):
-    """Structured result for removing sources from a dossier.
-
-    Tools that help map user instructions (e.g., "remove article 13") to
-    concrete dossier entries should return this object so the agent can update
-    state deterministically by ID.
-    """
-    remove_ids: list[str] = Field(default_factory=list)
-    reasoning: Optional[str] = None

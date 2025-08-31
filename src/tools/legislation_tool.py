@@ -5,7 +5,7 @@ Returns a DossierPatch that adds the sample legislation and selects their titles
 The agent is responsible for presenting user-facing messages.
 """
 
-from typing import Dict, Any, List
+from typing import Any
 import logging
 
 from src.models import DossierPatch, ToolResult
@@ -19,7 +19,7 @@ class LegislationTool:
     """Tool for retrieving relevant Dutch tax legislation."""
     
     def __init__(self):
-        self._sample_legislation: List[Legislation] = [
+        self._sample_legislation: list[Legislation] = [
             Legislation(
                 title="Wet op de vennootschapsbelasting 1969, artikel 13",
                 content=(
@@ -46,7 +46,7 @@ class LegislationTool:
         return "Retrieve relevant legislation for a query."
     
     @property 
-    def parameters_schema(self) -> Dict[str, Any]:
+    def parameters_schema(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {

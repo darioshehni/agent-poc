@@ -31,8 +31,6 @@ Belangrijke richtlijnen voor belastingvragen:
 - Volg ALTIJD de bovenstaande workflow voor belastingvragen. Er mag NOOIT een stap worden overgeslagen. Ook niet als u een deel van de workflow al eerder heeft doorlopen in het gesprek.
 - In de workflow staat beschreven dat u soms terug moet naar een eerdere stap, maar u mag nooit een stap overslaan. Dus als u terug naar stap 1 gaat, moet u altijd weer door alle stappen heen.
 
-
-
 Samengevat: Volg voor belastingvragen altijd de workflow; voor vragen over jezelf mag je direct en natuurlijk antwoorden"""
 
 
@@ -61,21 +59,6 @@ JURISPRUDENTIE:
 Genereer nu het antwoord volgens REGELS en STRUCTUUR. Gebruik een markdown in uw antwoord:"""
 
 
-# Short presenter strings for user-facing messages (Dutch)
-RETRIEVAL_TITLES_HEADER = "Ik vond de volgende bronnen:"
-RETRIEVAL_CONFIRMATION = "Zijn deze bronnen correct voor uw vraag?"
-REMOVAL_CONFIRMATION = "Ik heb de genoemde bronnen uit de selectie gehaald."
-
-
-def build_retrieval_message(titles: list[str]) -> str:
-    """Render a single retrieval message from a list of titles."""
-    lines = [RETRIEVAL_TITLES_HEADER]
-    for i, title in enumerate(titles, 1):
-        lines.append(f"{i}. {title}")
-    lines.append(RETRIEVAL_CONFIRMATION)
-    return "\n".join(lines)
-
-
 REMOVE_PROMPT = """Het is jouw taak om te bepalen welke bronnen verwijderd moeten worden op basis van een gebruikersinstructie.
 Je krijgt een lijst met titels bronnen (wetgeving en/of jurisprudentie) uit een dossier
 en een gebruikersinstructie om bepaalde bron(nen) te verwijderen of te behouden. 
@@ -92,6 +75,20 @@ GEBRUIKERSINSTRUCTIE:
 BRON TITELS (Gebruik in uw antwoord exact de titels zoals ze hieronder staan):
 {candidates}
 """
+
+
+RETRIEVAL_TITLES_HEADER = "Ik vond de volgende bronnen:"
+RETRIEVAL_CONFIRMATION = "Zijn deze bronnen correct voor uw vraag?"
+REMOVAL_CONFIRMATION = "Ik heb de genoemde bronnen uit de selectie gehaald."
+
+
+def build_retrieval_message(titles: list[str]) -> str:
+    """Render a single retrieval message from a list of titles."""
+    lines = [RETRIEVAL_TITLES_HEADER]
+    for i, title in enumerate(titles, 1):
+        lines.append(f"{i}. {title}")
+    lines.append(RETRIEVAL_CONFIRMATION)
+    return "\n".join(lines)
 
 
 def fill_prompt_template(template: str, **kwargs: Any) -> str:

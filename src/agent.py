@@ -16,10 +16,10 @@ Persistence is handled by the WebSocket server after sending the reply.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Any
 
 from src.config import OpenAIModels
-from src.sessions import SessionManager
+from src.sessions import get_or_create_dossier, save_dossier
 from src.llm import LlmChat, LlmAnswer
 from src.tools.legislation_tool import LegislationTool
 from src.tools.case_law_tool import CaseLawTool
@@ -39,7 +39,7 @@ class TaxAssistant:
     """Orchestrates chat between the user, tools, and the LLM.
 
     Responsibilities:
-    - Maintain per-dossier state via SessionManager
+    - Maintain per-dossier state via Dossier object
     - Issue LLM calls with function-calling tools available
     - Delegate tool-call execution and context construction to helpers
     - Return the assistant's final response as a string
@@ -47,7 +47,7 @@ class TaxAssistant:
     
     def __init__(
         self,
-        dossier_id: str = "default",
+        dossier_id: str = "",
     ):
         """
         Initialize the chatbot with clean architecture components.
@@ -55,21 +55,15 @@ class TaxAssistant:
         Args:
             dossier_id: Identifier for this dossier
         """
-        
-        # Core components
-        self.llm_client = LlmChat()
-        self.session_manager = SessionManager()
-        # tools map and their schemas for function-calling
-        self.tools: Dict[str, Any] = {}
-        self.tool_call_handler = None  # will be set after tools map is ready
-
-        # Current session
         self.dossier_id = dossier_id
-        
-        # Initialize system
+        self.dossier: Dossier = get_or_create_dossier(dossier_id=dossier_id)
+        self.llm_client = LlmChat()
+
+        self.tools: dict[str, Any] = {}
+        self.tool_call_handler = None  # will be set after tools map is ready
         self._setup_tools()
         
-        logger.info(f"TaxChatbot initialized for dossier: {dossier_id}")
+        logger.info(f"TESS initialized for dossier: {dossier_id}")
     
     def _setup_tools(self) -> None:
         """Register all available tools."""
@@ -111,17 +105,15 @@ class TaxAssistant:
         """
         
         try:
-            dossier = self.session_manager.get_or_create_dossier(self.dossier_id)
-            
-            # Add user message to dossier conversation
-            dossier.add_conversation_user(content=user_input)
+            self.dossier.add_conversation_user(content=user_input)
             
             logger.info(f"Processing message for dossier {self.dossier_id}: {user_input[:50]}...")
 
-            response = await self._process_with_ai(dossier=dossier)
+            response = await self._process_with_ai(dossier=self.dossier)
             
             # Add assistant response to dossier conversation
-            dossier.add_conversation_assistant(response)
+            self.dossier.add_conversation_assistant(response)
+            save_dossier(dossier=self.dossier)
             
             return response
             
@@ -138,7 +130,7 @@ class TaxAssistant:
         # Persisted, user-visible conversation (strings only)
         conversation = dossier.conversation
         # Working copy for LLM calls (may include tool_call objects and tool messages)
-        llm_messages: List[Dict[str, Any]] = list(conversation)
+        llm_messages: list[dict[str, Any]] = list(conversation)
 
         tools = self.tool_schemas
         logger.info(f"{conversation}")

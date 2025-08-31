@@ -7,7 +7,7 @@ transcript; they remain solely in the dossier and are fed to the LLM only at
 answer time via the prompt constructed here.
 """
 
-from typing import Dict, Any, List
+from typing import Any
 import logging
 
 from src.models import ToolResult
@@ -43,7 +43,7 @@ class AnswerTool:
         return "Generate an answer to a tax question using dossier sources (legislation and case law)"
     
     @property
-    def parameters_schema(self) -> Dict[str, Any]:
+    def parameters_schema(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {
@@ -112,7 +112,7 @@ class AnswerTool:
             raise ValueError(f"Error generating answer: {str(e)}")
 
 
-    def _format_sources(self, sources: List[any]) -> str:
+    def _format_sources(self, sources: list[any]) -> str:
         """Format a list of source texts for inclusion in the prompt."""
         if not sources:
             return "Geen bronnen beschikbaar.\n"

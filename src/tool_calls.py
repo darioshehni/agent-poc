@@ -8,21 +8,14 @@ What it does (in plain terms):
   async lock (single writer per dossier).
 - Appends a compact tool result to the messages for the model (no large content).
 - Returns a tuple: (updated messages, outcomes), where outcomes is a list of
-  {"function": str, "patch": DossierPatch | None} for the agent to present.
-
-What it does NOT do:
-- Format user‑visible messages (the agent presents patches to the user).
-- Persist the dossier (the WebSocket server saves after sending the reply).
-- Make additional LLM calls (the agent controls the LLM dialogue).
-"""
+  {"function": str, "patch": DossierPatch | None} for the agent to present."""
 
 from typing import Any, Dict, List
 import json
 import logging
 import asyncio
 
-from src.models import Dossier
-from src.models import DossierPatch
+from src.models import Dossier, DossierPatch
 
 
 class ToolCallHandler:
@@ -37,12 +30,6 @@ class ToolCallHandler:
     def __init__(self, tools_map: Dict[str, Any], logger: logging.Logger | None = None) -> None:
         self.tools_map = tools_map
         self.logger = logger or logging.getLogger(__name__)
-        self._locks: Dict[str, asyncio.Lock] = {}
-
-    def _get_lock(self, dossier_id: str) -> asyncio.Lock:
-        if dossier_id not in self._locks:
-            self._locks[dossier_id] = asyncio.Lock()
-        return self._locks[dossier_id]
 
     async def call_tool(
         self,
@@ -73,6 +60,7 @@ class ToolCallHandler:
                     normalized_calls.append(json.loads(raw))
                 except Exception:
                     self.logger.error("Failed to parse tool_call string; skipping")
+                    raise ValueError("Failed to parse tool_call string")
             else:
                 self.logger.error("Invalid tool_call entry type: %s", type(raw).__name__)
 
@@ -108,10 +96,10 @@ class ToolCallHandler:
                 self.logger.info(f"Executing tool: {function_name}")
 
                 # Execute tool and serialize for LLM
-                tool_fn = self.tools_map.get(function_name)
-                if not tool_fn:
+                tool_function = self.tools_map.get(function_name)
+                if not tool_function:
                     raise ValueError(f"Unknown tool: {function_name}")
-                tool_result = await tool_fn(dossier=dossier, **arguments)
+                tool_result = await tool_function(dossier=dossier, **arguments)
                 # For retrieval tools, avoid putting full content in the conversation.
                 # Minimal payload back to the LLM; we do not expose full content
                 result_payload = {"success": bool(getattr(tool_result, "success", True))}
@@ -129,9 +117,6 @@ class ToolCallHandler:
                         "message": tool_result.message,
                         "data": getattr(tool_result, "data", None),
                     })
-
-                # Handle removal tool by updating selection (do not delete items)
-                # remove_sources is handled via patches like others; nothing special here
 
                 # Append tool message for the LLM to consume
                 messages.append({
@@ -152,28 +137,15 @@ class ToolCallHandler:
                     "content": error_result,
                 })
 
-        # Apply all patches/messages under a per‑dossier lock
-        try:
-            lock = self._get_lock(dossier.dossier_id)
-        except Exception:
-            lock = None
 
-        async def _apply_all():
-            for out in tool_outcomes:
-                patch = out.get("patch")
-                if isinstance(patch, DossierPatch):
-                    patch.apply(dossier)
-                # If a standalone message was returned, append it
-                msg = (out.get("message") or "").strip()
-                if msg:
-                    dossier.add_conversation_assistant(msg)
+        for output in tool_outcomes:
+            patch = output.get("patch")
+            if isinstance(patch, DossierPatch):
+                patch.apply(dossier)
+            # If a standalone message was returned, append it
+            msg = output.get("message").strip()
+            if msg:
+                dossier.add_conversation_assistant(msg)
 
-        if lock is not None:
-            async with lock:
-                await _apply_all()
-        else:
-            await _apply_all()
 
         return messages, tool_outcomes
-
-    # No per-tool injectors: context-aware tools should read from session/dossier directly

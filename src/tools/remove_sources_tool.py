@@ -18,8 +18,6 @@ from src.config import OpenAIModels
 logger = logging.getLogger(__name__)
 
 
-
-
 class RemoveSourcesTool:
     """Convert a removal instruction into a list of dossier source titles to unselect.
 
@@ -59,11 +57,11 @@ class RemoveSourcesTool:
     async def execute(self, instruction: str, dossier: Dossier) -> ToolResult:
         try:
             if not instruction.strip():
-                return ToolResult(False, None, "Instruction cannot be empty")
+                return ToolResult(success=False, data=None, message="Instruction cannot be empty")
 
             selected_titles: list[str] = dossier.selected_titles()
             if not selected_titles:
-                return ToolResult(False, None, "No dossier sources available to remove")
+                return ToolResult(success=False, data=None, message="No dossier sources available to remove")
 
             selected_titles_formatted = "\n".join(selected_titles)
 
