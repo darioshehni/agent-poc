@@ -71,5 +71,4 @@ def get_or_create_dossier(dossier_id: str) -> Dossier:
     dossier = _load_dossier(dossier_id=dossier_id)
     if dossier:
         return dossier
-    # Create dossier with the requested ID to preserve session across turns
     return _create_dossier(dossier_id=dossier_id)

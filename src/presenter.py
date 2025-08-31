@@ -45,7 +45,7 @@ def present_outcomes(outcomes: List[Dict[str, Any]], dossier: Dossier | None = N
         lines = ["Ik vond de volgende bronnen:"]
         for i, title in enumerate(titles, 1):
             lines.append(f"{i}. {title}")
-        lines.append("Zijn deze bronnen correct voor uw vraag?")
+        lines.append("\nZijn deze bronnen correct voor uw vraag?")
         messages.append("\n".join(lines))
 
     if removal_titles:

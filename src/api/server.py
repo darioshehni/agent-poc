@@ -17,7 +17,7 @@ from typing import Any, Dict
 from fastapi import FastAPI, WebSocket
 from dotenv import load_dotenv
 
-from src.agent import TaxAssistant
+from src.agent import TESS
 
 load_dotenv()
 
@@ -46,7 +46,7 @@ async def websocket_chat(ws: WebSocket) -> None:
             return
 
         # Create a fresh chatbot per connection; session manager loads the dossier if present
-        assistant = TaxAssistant(dossier_id=dossier_id)
+        assistant = TESS(dossier_id=dossier_id)
         response_text = await assistant.process_message(message)
         await ws.send_json({"status": "success", "response": response_text, "dossier_id": dossier_id})
         await ws.close()
