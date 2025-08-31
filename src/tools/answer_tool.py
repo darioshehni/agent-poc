@@ -1,7 +1,7 @@
 """
 Answer generation tool with clean architecture.
 
-This tool generates a comprehensive answer for a tax question using the current
+This tool generates a comprehensive answer for a tax query using the current
 dossier as its authoritative context. Large source texts never enter the chat
 transcript; they remain solely in the dossier and are fed to the LLM only at
 answer time via the prompt constructed here.
@@ -40,22 +40,22 @@ class AnswerTool:
     
     @property
     def description(self) -> str:
-        return "Generate an answer to a tax question using dossier sources (legislation and case law)"
+        return "Generate an answer to a tax query using dossier sources (legislation and case law)"
     
     @property
     def parameters_schema(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {
-                "question": {
+                "query": {
                     "type": "string",
-                    "description": "Original tax question from the user. Include any context that could be relevant or helpful for answering the question correctly."
+                    "description": "Original tax query from the user. Include any context that could be relevant or helpful for answering correctly."
                 }
             },
-            "required": ["question"]
+            "required": ["query"]
         }
     
-    async def execute(self, question: str, dossier: Dossier) -> ToolResult:
+    async def execute(self, query: str, dossier: Dossier) -> ToolResult:
         """
         Generate a comprehensive tax answer using sources from the session dossier.
         
@@ -67,12 +67,12 @@ class AnswerTool:
         """
         
         try:
-            logger.info(f"Generating answer for question: {question}...")
+            logger.info(f"Generating answer for query: {query}...")
             
-            # Require the model to pass the question explicitly
-            question = question.strip()
-            if not question:
-                raise ValueError("Question cannot be empty")
+            # Require the model to pass the query explicitly
+            query = query.strip()
+            if not query:
+                raise ValueError("Query cannot be empty")
 
             legislations = dossier.get_selected_legislation()
             case_laws = dossier.get_selected_case_law()
@@ -84,7 +84,7 @@ class AnswerTool:
             # Create the prompt using template
             prompt = fill_prompt_template(
                 get_prompt_template("answer_generation"),
-                question=question,
+                query=query,
                 legislation=legislation_context,
                 case_law=case_law_context
             )

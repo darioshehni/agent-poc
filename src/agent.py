@@ -16,6 +16,8 @@ Persistence is handled by the WebSocket server after sending the reply.
 """
 
 import logging
+import re
+import json
 from typing import Any
 
 from src.config import OpenAIModels
@@ -125,19 +127,39 @@ class TaxAssistant:
     async def _process_with_ai(self, dossier: Dossier) -> str:
         """Process one user turn using LLM + tools, returning assistant text."""
 
-        # Prepare user-visible conversation (curated) from dossier
         system_prompt = [{"role": "system", "content": AGENT_SYSTEM_PROMPT}]
-        # Persisted, user-visible conversation (strings only)
         conversation = dossier.conversation
-        # Working copy for LLM calls (may include tool_call objects and tool messages)
-        llm_messages: list[dict[str, Any]] = list(conversation)
 
         tools = self.tool_schemas
-        logger.info(f"{conversation}")
+        logger.info(f"AGENT: conversation_len={len(conversation)} last_user={(conversation[-1]['content'][:60] if conversation else '')}")
+
+        # Agent-level routing: detect explicit removal request and call tool directly
         try:
-            # Make initial AI request
+            last_user = (conversation[-1]["content"] if conversation else "").strip().lower()
+        except Exception:
+            last_user = ""
+        removal_patterns = [
+            r"\bverwijder\b",
+            r"\bniet nodig\b",
+            r"\bhaal (het|de|die)?\s*weg\b",
+            r"\bgeen\s+(ecli|jurisprudentie|rechtspraak)\b",
+        ]
+        is_removal_intent = bool(last_user and any(re.search(p, last_user) for p in removal_patterns))
+        if is_removal_intent and dossier.selected_titles():
+            logger.info("AGENT: direct removal intent detected; invoking remove_sources tool")
+            synthetic_calls = [{
+                "function": {"name": "remove_sources", "arguments": json.dumps({"query": last_user})}
+            }]
+            tool_calls = await self.tool_call_handler.run(dossier=dossier, tool_calls=synthetic_calls)
+            outcome_messages = present_outcomes(tool_calls, dossier=dossier)
+            if outcome_messages:
+                return "\n\n".join(outcome_messages)
+            return "Ik heb uw selectie aangepast. Wilt u de huidige bronnen controleren?"
+
+        try:
+            logger.info("AGENT: chat request (tools enabled)")
             llm_answer: LlmAnswer = await self.llm_client.chat(
-                messages=system_prompt + llm_messages,
+                messages=system_prompt + conversation,
                 model_name=OpenAIModels.GPT_4O.value,
                 tools=tools,
                 temperature=0.0,
@@ -146,11 +168,11 @@ class TaxAssistant:
             
             # Handle function calls
             if response_message["tool_calls"]:
-                # Execute tool calls and apply patches; handler returns list of outcomes
-                llm_messages, tool_calls = await self.tool_call_handler.call_tool(
+                logger.info(f"AGENT: tool_calls received: {[c.get('function',{}).get('name') for c in llm_answer.tool_calls]}")
+                # Execute tool calls with parsed arguments from the model
+                tool_calls = await self.tool_call_handler.run(
                     dossier=dossier,
-                    messages=llm_messages,
-                    response_message=response_message,
+                    tool_calls=llm_answer.tool_calls,
                 )
 
                 # Formulate user-visible assistant message(s) (retrieval/removal confirmations)
@@ -159,6 +181,7 @@ class TaxAssistant:
                     # Return these to the user now; do not proceed to final LLM answer
                     # The WebSocket server expects a single string, so join if multiple
                     combined = "\n\n".join(outcome_messages)
+                    logger.info("AGENT: returning presenter messages (retrieval/removal)")
                     return combined
 
                 # If AnswerTool produced an answer, return it directly
@@ -167,11 +190,13 @@ class TaxAssistant:
                         return tool_call["data"]
 
                 # If no outcome messages and no AnswerTool, provide a safe fallback
+                logger.info("AGENT: tools executed but no presenter messages; returning fallback")
                 return "Ik heb bronnen verzameld, maar kon geen titels presenteren. Kunt u uw vraag iets aanscherpen?"
             else:
                 # Direct response without function calls
+                logger.info("AGENT: no tool_calls; returning direct content")
                 return response_message["content"] or "Ik kon geen passend antwoord genereren."
-                
+
         except Exception as e:
             logger.error(f"Error in AI processing: {str(e)}")
             raise ValueError(f"Error in AI processing: {str(e)}")

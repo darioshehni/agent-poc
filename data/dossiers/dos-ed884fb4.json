@@ -1,0 +1,16 @@
+{
+  "dossier_id": "dos-ed884fb4",
+  "legislation": [],
+  "case_law": [],
+  "selected_ids": [],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "de ECLI bronnen heb ik niet nodig"
+    },
+    {
+      "role": "assistant",
+      "content": "Om je beter te kunnen helpen, moet ik eerst relevante bronnen verzamelen. Kun je me vertellen over welk belastingonderwerp of welke specifieke vraag je meer informatie zoekt? Dan kan ik de juiste wetgeving en jurisprudentie voor je opzoeken."
+    }
+  ]
+}

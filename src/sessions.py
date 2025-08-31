@@ -20,9 +20,9 @@ from src.config import DOSSIER_BASE_DIR
 logger = logging.getLogger(__name__)
 
 
-def _create_dossier() -> Dossier:
-    """Create a new empty dossier with the given id."""
-    dossier_id = f"dos-{uuid.uuid4().hex[:8]}"
+def _create_dossier(dossier_id: Optional[str] = None) -> Dossier:
+    """Create a new empty dossier. Uses provided id when given."""
+    dossier_id = (dossier_id or f"dos-{uuid.uuid4().hex[:8]}")
     dossier = Dossier(dossier_id=dossier_id)
     logger.info(f"Created new dossier with id: {dossier_id}")
     return dossier
@@ -71,4 +71,5 @@ def get_or_create_dossier(dossier_id: str) -> Dossier:
     dossier = _load_dossier(dossier_id=dossier_id)
     if dossier:
         return dossier
-    return _create_dossier()
+    # Create dossier with the requested ID to preserve session across turns
+    return _create_dossier(dossier_id=dossier_id)

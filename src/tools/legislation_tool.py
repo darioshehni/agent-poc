@@ -8,11 +8,9 @@ The agent is responsible for presenting user-facing messages.
 from typing import Any
 import logging
 
-from src.models import DossierPatch, ToolResult
+from src.models import DossierPatch, ToolResult, Legislation
 
 logger = logging.getLogger(__name__)
-
-from src.models import Legislation
 
 
 class LegislationTool:
@@ -76,5 +74,3 @@ class LegislationTool:
         except Exception as e:
             logger.error(f"LegislationTool failed: {e}", exc_info=True)
             return ToolResult(success=False, data=None, error_message=str(e))
-    
-    # No search helpers in dummy implementation

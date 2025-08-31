@@ -48,7 +48,7 @@ STRUCTUUR:
 3) ANTWOORD: eindig met een duidelijk, kort antwoord op de vraag. Gebasseerd op de analyse (indien van toepassing).
 
 GEBRUIKERSVRAAG:
-{question}
+{query}
 
 WETGEVING:
 {legislation}
@@ -59,22 +59,22 @@ JURISPRUDENTIE:
 Genereer nu het antwoord volgens REGELS en STRUCTUUR. Gebruik een markdown in uw antwoord:"""
 
 
-REMOVE_PROMPT = """Het is jouw taak om te bepalen welke bronnen verwijderd moeten worden op basis van een gebruikersinstructie.
-Je krijgt een lijst met titels bronnen (wetgeving en/of jurisprudentie) uit een dossier
-en een gebruikersinstructie om bepaalde bron(nen) te verwijderen of te behouden. 
+REMOVE_PROMPT = """Het is jouw taak om te bepalen welke bronnen verwijderd moeten worden op basis van een gebruikersquery.
+Je krijgt een lijst met titels van bronnen (wetgeving en/of jurisprudentie) uit een dossier
+en een gebruikersquery om bepaalde bron(nen) te verwijderen of te behouden.
 
-Op bassis van de instructie kiest u welke bronnen verwijderd moeten worden.
+Op basis van de query kiest u welke bronnen verwijderd moeten worden.
 
-Geef enkel de titels van de bronnen die verwijderd moeten worden. Zorg er voor dat de titels exact overeenkomen met hoe ze hieronder staan geschreven. Geef GEEN verdere toelichting.
+Geef enkel de titels van de bronnen die verwijderd moeten worden. Zorg ervoor dat de titels exact overeenkomen met hoe ze hieronder staan geschreven. Geef GEEN verdere toelichting.
 
-De instructie kan beschrijven welke bronnen verwijderd moeten worden, of juist welke behouden moeten worden. Maar het is uw taak om te bepalen welke titels uit de lijst verwijderd moeten worden.
+De query kan beschrijven welke bronnen verwijderd moeten worden, of juist welke behouden moeten worden. Maar het is uw taak om te bepalen welke titels uit de lijst verwijderd moeten worden.
+De gebruiker kan bijvoorbeeld zeggen "verwijder artikel 13 en ECLI:234:456 uit de selectie" of "behoud alleen de wetgeving, niet de jurisprudentie.". U weet dan welke titels u uit de selectie moet halen.
 
-GEBRUIKERSINSTRUCTIE:
-{instruction}
+GEBRUIKERSQUERY:
+{query}
 
 BRON TITELS (Gebruik in uw antwoord exact de titels zoals ze hieronder staan):
-{candidates}
-"""
+{candidates}"""
 
 
 RETRIEVAL_TITLES_HEADER = "Ik vond de volgende bronnen:"

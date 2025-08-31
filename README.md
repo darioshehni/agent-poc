@@ -31,7 +31,7 @@ This repository implements a Dutch tax chatbot (“TESS”) with a clean, tool�
 - `src/tools/`: Tool implementations (stateless; return DossierPatch or answer text):
   - `legislation_tool.py`: dummy legislation retrieval → returns a patch (add_legislation + select_titles).
   - `case_law_tool.py`: dummy case law retrieval → returns a patch (add_case_law + select_titles).
-  - `remove_sources_tool.py`: maps a removal instruction to titles and returns a patch (unselect_titles) via a structured call.
+  - `remove_sources_tool.py`: maps a removal query to titles and returns a patch (unselect_titles) via a structured call.
   - `answer_tool.py`: builds and returns the final answer text from dossier sources.
 - `src/api/server.py`: Minimal FastAPI WebSocket server; proxies one message per connection and persists the dossier at the end.
 - `terminal_chat.py`: Minimal WebSocket client for local testing.
@@ -98,4 +98,3 @@ Important: large source texts never enter the chat transcript; they stay in the 
 - Tools are pure domain logic: they return patches or an answer; they don’t perform file I/O or format user messages.
 - Persistence once per turn: the server persists a snapshot after the reply to ensure atomic, user‑visible states.
 - Minimal transcripts: titles and short messages keep tokens low and avoid leaking large texts into the chat.
-

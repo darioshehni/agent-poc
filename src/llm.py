@@ -85,8 +85,17 @@ class LlmChat:
                 params["tool_choice"] = tool_choice
 
         try:
+            # Debug: summarize request
+            try:
+                msg_count = len(messages) if isinstance(messages, list) else 1
+                tool_count = len(params.get("tools", []) or [])
+                self.logger.info(f"LLM(Chat) start model={model_name} messages={msg_count} tools={tool_count}")
+            except Exception:
+                pass
+
             response = await self._openai_client.chat.completions.create(**params)
             msg = response.choices[0].message
+            finish = getattr(response.choices[0], "finish_reason", None)
             tool_calls: List[Dict[str, Any]] = []
             for tool_call in (msg.tool_calls or []):
                 try:
@@ -104,6 +113,13 @@ class LlmChat:
                     tool_calls.append({
                         "function": {"name": getattr(getattr(tool_call, 'function', object()), 'name', ''), "arguments": getattr(getattr(tool_call, 'function', object()), 'arguments', '{}')}
                     })
+            # Debug: log finish and tool call names
+            try:
+                names = [tc.get("function", {}).get("name") for tc in tool_calls if isinstance(tc, dict)]
+                self.logger.info(f"LLM(Chat) done finish={finish} tool_calls={len(tool_calls)} names={names}")
+            except Exception:
+                pass
+
             # Content may be None when the model chooses tool_calls.
             # Ensure we always return a string to satisfy LlmAnswer.
             answer_text: str = msg.content if isinstance(getattr(msg, "content", None), str) else ""
@@ -127,6 +143,11 @@ class LlmChat:
         try:
             client_has_responses = hasattr(self._openai_client, "responses")
             if client_has_responses:
+                try:
+                    msg_count = len(messages) if isinstance(messages, list) else 1
+                    self.logger.info(f"LLM(Structured) start model={model_name} messages={msg_count} format={response_format.__name__}")
+                except Exception:
+                    pass
                 if isinstance(messages, str):
                     messages = [{"role": "user", "content": messages}]
                 resp = await self._openai_client.responses.parse(  # type: ignore[attr-defined]
@@ -134,7 +155,12 @@ class LlmChat:
                     input=messages,
                     text_format=response_format,
                 )
-                return resp.output_parsed
+                out = resp.output_parsed
+                try:
+                    self.logger.info(f"LLM(Structured) done via ResponsesAPI output={out.model_dump_json()}")
+                except Exception:
+                    pass
+                return out
         except Exception as e:
             # Log and continue to fallback
             self.logger.error(f"Structured chat parse failed: {e}")
@@ -164,6 +190,11 @@ class LlmChat:
                 temperature=0,
             )
             text = getattr(cc_resp.choices[0].message, "content", None) or "{}"
+            try:
+                preview = text[:500].replace("\n", " ")
+                self.logger.info(f"LLM(Structured) fallback raw={preview}")
+            except Exception:
+                pass
             # Attempt direct JSON parse
             try:
                 obj = json.loads(text)
@@ -175,7 +206,12 @@ class LlmChat:
                     obj = json.loads(text[start : end + 1])
                 else:
                     raise
-            return response_format.model_validate(obj)
+            out = response_format.model_validate(obj)
+            try:
+                self.logger.info(f"LLM(Structured) done via Fallback output={out.model_dump_json()}")
+            except Exception:
+                pass
+            return out
         except Exception as e:
             self.logger.error(f"Structured chat (fallback) failed: {e}")
             raise

@@ -31,8 +31,7 @@ class CaseLawTool:
                 ),
             ),
         ]
-        # stateless
-    
+
     @property
     def name(self) -> str:
         return "get_case_law"
