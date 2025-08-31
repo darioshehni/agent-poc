@@ -8,7 +8,7 @@ The agent is responsible for presenting user-facing messages.
 from typing import Any
 import logging
 
-from src.models import DossierPatch, ToolResult, Legislation
+from src.config.models import DossierPatch, ToolResult, Legislation
 
 logger = logging.getLogger(__name__)
 

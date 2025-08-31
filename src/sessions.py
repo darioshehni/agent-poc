@@ -14,8 +14,8 @@ from pathlib import Path
 import json
 import uuid
 
-from src.models import Dossier
-from src.config import DOSSIER_BASE_DIR
+from src.config.models import Dossier
+from src.config.config import DOSSIER_BASE_DIR
 
 logger = logging.getLogger(__name__)
 

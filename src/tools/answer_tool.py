@@ -10,11 +10,11 @@ answer time via the prompt constructed here.
 from typing import Any
 import logging
 
-from src.models import ToolResult
+from src.config.models import ToolResult
 from src.llm import LlmChat, LlmAnswer
-from src.prompts import get_prompt_template, fill_prompt_template
-from src.models import Dossier
-from src.config import OpenAIModels
+from src.config.prompts import get_prompt_template, fill_prompt_template
+from src.config.models import Dossier
+from src.config.config import OpenAIModels
 
 logger = logging.getLogger(__name__)
 

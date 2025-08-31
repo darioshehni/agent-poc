@@ -12,8 +12,7 @@ Rules:
 """
 
 from typing import Any, Dict, List
-from src.models import Dossier
-from src.prompts import build_retrieval_message
+from src.config.models import Dossier
 
 
 def present_outcomes(outcomes: List[Dict[str, Any]], dossier: Dossier | None = None) -> List[str]:

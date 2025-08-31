@@ -10,10 +10,10 @@ De agent verzorgt de user‑facing bevestiging.
 from typing import Any
 import logging
 
-from src.models import DocumentTitles, DossierPatch, Dossier, ToolResult
+from src.config.models import DocumentTitles, DossierPatch, Dossier, ToolResult
 from src.llm import LlmChat
-from src.prompts import RESTORE_PROMPT
-from src.config import OpenAIModels
+from src.config.prompts import RESTORE_PROMPT
+from src.config.config import OpenAIModels
 
 logger = logging.getLogger(__name__)
 

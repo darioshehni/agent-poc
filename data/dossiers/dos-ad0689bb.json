@@ -1,0 +1,69 @@
+{
+  "dossier_id": "dos-ad0689bb",
+  "legislation": [
+    {
+      "title": "Wet op de vennootschapsbelasting 1969, artikel 13",
+      "content": "De deelnemingsvrijstelling is een belangrijke fiscale regeling in de Nederlandse vennootschapsbelasting.\nKort gezegd betekent het dat een bedrijf (bijvoorbeeld een BV of NV) geen belasting hoeft te betalen over winst (dividenden of verkoopwinsten) die het ontvangt uit een kwalificerende deelneming. Zo wordt dubbele belasting voorkomen: de winst is namelijk al belast bij de dochtermaatschappij die de winst maakte.\nVoorwaarden deelnemingsvrijstelling\nDe deelnemingsvrijstelling geldt meestal als:\nAandeelhouderschap: de moedermaatschappij minimaal 5% van de aandelen bezit in de dochtermaatschappij.\n"
+    },
+    {
+      "title": "Wet op de omzetbelasting 1968, artikel 2",
+      "content": "Het btw-tarief op goederen is 21%"
+    }
+  ],
+  "case_law": [
+    {
+      "title": "ECLI:NL:HR:2020:123",
+      "content": "Geschil over btw-classificatie en tarieftoepassing. Het btw tarief op tandpasta is 0%"
+    },
+    {
+      "title": "ECLI:NL:RBAMS:2021:456",
+      "content": "Deelnemingsvrijstelling vereist een zakelijk motief."
+    }
+  ],
+  "selected_ids": [
+    "ECLI:NL:HR:2020:123",
+    "ECLI:NL:RBAMS:2021:456"
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "wat isd e btw"
+    },
+    {
+      "role": "assistant",
+      "content": "De BTW, of Belasting over de Toegevoegde Waarde, is een belasting die wordt geheven op de verkoop van goederen en diensten. Het is een vorm van indirecte belasting die door de consument wordt betaald, maar door de verkoper aan de belastingdienst wordt afgedragen. In Nederland zijn er verschillende BTW-tarieven, afhankelijk van het type product of dienst. De meest voorkomende tarieven zijn het standaardtarief van 21%, het verlaagde tarief van 9% en het nultarief voor bepaalde goederen en diensten. \n\nAls je specifieke vragen hebt over de BTW, zoals hoe het werkt of welke tarieven van toepassing zijn op bepaalde producten, laat het me weten!"
+    },
+    {
+      "role": "user",
+      "content": "wat is het btw op tandpasta"
+    },
+    {
+      "role": "assistant",
+      "content": "Het BTW-tarief op tandpasta in Nederland valt onder het standaardtarief van 21%. Dit komt omdat tandpasta wordt beschouwd als een verzorgingsproduct en niet onder de verlaagde tarieven voor bijvoorbeeld voedingsmiddelen of medicijnen valt. Als je meer specifieke vragen hebt over BTW-tarieven of andere belastinggerelateerde onderwerpen, laat het me gerust weten!"
+    },
+    {
+      "role": "user",
+      "content": "dat was een belastingsvraag"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende bronnen:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2\n3. ECLI:NL:HR:2020:123\n4. ECLI:NL:RBAMS:2021:456\nZijn deze bronnen correct voor uw vraag?"
+    },
+    {
+      "role": "user",
+      "content": "geen artiekls, alleen jurisprudentie"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik heb de volgende bronnen uit de selectie gehaald:\n1. Wet op de vennootschapsbelasting 1969, artikel 13\n2. Wet op de omzetbelasting 1968, artikel 2\n\nHuidige selectie:\n1. ECLI:NL:HR:2020:123\n2. ECLI:NL:RBAMS:2021:456"
+    },
+    {
+      "role": "user",
+      "content": "ja"
+    },
+    {
+      "role": "assistant",
+      "content": "```markdown\n**BRONNEN:**\n- ECLI:NL:HR:2020:123\n\n**ANALYSE:**\nDe jurisprudentie ECLI:NL:HR:2020:123 behandelt de btw-classificatie en tarieftoepassing specifiek voor tandpasta. Volgens deze uitspraak is het btw-tarief op tandpasta vastgesteld op 0%.\n\n**ANTWOORD:**\nOp basis van de beschikbare jurisprudentie is het btw-tarief op tandpasta 0%.\n```"
+    }
+  ]
+}

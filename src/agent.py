@@ -20,7 +20,7 @@ import re
 import json
 from typing import Any
 
-from src.config import OpenAIModels
+from src.config.config import OpenAIModels
 from src.sessions import get_or_create_dossier, save_dossier
 from src.llm import LlmChat, LlmAnswer
 from src.tools.legislation_tool import LegislationTool
@@ -30,8 +30,8 @@ from src.tools.remove_sources_tool import RemoveSourcesTool
 from src.tools.restore_sources_tool import RestoreSourcesTool
 from src.presenter import present_outcomes
 from src.tool_calls import ToolCallHandler
-from src.models import Dossier
-from src.prompts import AGENT_SYSTEM_PROMPT
+from src.config.models import Dossier
+from src.config.prompts import AGENT_SYSTEM_PROMPT
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

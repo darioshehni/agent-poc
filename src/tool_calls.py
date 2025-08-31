@@ -14,9 +14,8 @@ This handler does NOT mutate the LLM message list or make follow‑up LLM calls.
 from typing import Any, Dict, List
 import json
 import logging
-import asyncio
 
-from src.models import Dossier, DossierPatch
+from src.config.models import Dossier, DossierPatch
 
 
 class ToolCallHandler:

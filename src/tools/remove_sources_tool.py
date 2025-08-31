@@ -10,10 +10,10 @@ from typing import Any
 import logging
 
 
-from src.models import DocumentTitles, DossierPatch, Dossier, ToolResult
+from src.config.models import DocumentTitles, DossierPatch, Dossier, ToolResult
 from src.llm import LlmChat
-from src.prompts import REMOVE_PROMPT
-from src.config import OpenAIModels
+from src.config.prompts import REMOVE_PROMPT
+from src.config.config import OpenAIModels
 
 logger = logging.getLogger(__name__)
 
