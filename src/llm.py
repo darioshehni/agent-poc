@@ -1,5 +1,13 @@
 """
-Async LLM client used across the codebase (prompt formatting + OpenAI calls).
+Async LLM client used across the codebase.
+
+Provides:
+- `chat(messages, model_name, tools=...)` → `LlmAnswer(answer, tool_calls)` where
+  `messages` can be a list of {role, content} or a single string. When `tools`
+  (function schemas) are supplied, tool_calls contains the tool names chosen by
+  the model for this turn.
+- `chat_structured(messages, model_name, response_format)` to parse typed
+  responses into Pydantic models (used by the removal tool).
 """
 
 import os
@@ -17,10 +25,11 @@ class LlmAnswer(BaseModel):
     """Unified LLM answer wrapper returned by LlmChat.chat.
 
     - answer: string form of the model output.
-    - tool_calls: names of tools the model decided to call in this turn.
+    - tool_calls: structured tool call requests with function name and arguments
+      as provided by the model SDK (normalized to dicts).
     """
     answer: str
-    tool_calls: List[str] = []
+    tool_calls: List[Dict[str, Any]] = []
 
 
 class LlmChat:
@@ -77,7 +86,22 @@ class LlmChat:
         try:
             resp = await self._openai_client.chat.completions.create(**params)
             msg = resp.choices[0].message
-            tool_calls = [tc.function.name for tc in (msg.tool_calls or [])]
+            tool_calls: List[Dict[str, Any]] = []
+            for tc in (msg.tool_calls or []):
+                try:
+                    tool_calls.append({
+                        "id": getattr(tc, "id", None),
+                        "type": getattr(tc, "type", "function"),
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments or "{}",
+                        },
+                    })
+                except Exception:
+                    # Fallback minimal shape
+                    tool_calls.append({
+                        "function": {"name": getattr(getattr(tc, 'function', object()), 'name', ''), "arguments": getattr(getattr(tc, 'function', object()), 'arguments', '{}')}
+                    })
             return LlmAnswer(answer=msg.content or "", tool_calls=tool_calls)
         except Exception as e:
             self.logger.error(f"Chat completion failed: {e}")
@@ -88,7 +112,7 @@ class LlmChat:
         messages: List[Dict[str, Any]] | str,
         model_name: str,
         response_format: Type[BaseModel],
-    ) -> BaseModel:
+    ) -> type[BaseModel]:
         """Structured call that returns a parsed Pydantic model (no tools)."""
         try:
             if isinstance(messages, str):

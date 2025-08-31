@@ -3,7 +3,8 @@
 Terminal WebSocket client for the Tax Chatbot.
 
 Connects to the API WebSocket, sends one message per connection, receives the
-response, and prints it. The server handles dossier updates and persistence.
+response, and prints it. The server updates and persists the dossier after the
+reply is sent, so you can resume by reusing the same dossier_id.
 
 Usage:
     python terminal_chat.py --dossier <optional_dossier_id>

@@ -58,6 +58,23 @@ JURISPRUDENTIE:
 Genereer nu het antwoord volgens REGELS en STRUCTUUR."""
 
 
+REMOVE_PROMPT = """Het is jouw taak om te bepalen welke bronnen verwijderd moeten worden op basis van een gebruikersinstructie.
+Je krijgt een lijst met bronnen (wetgeving en/of jurisprudentie) uit een dossier
+en een gebruikersinstructie om bepaalde bron(nen) te verwijderen. Kies uitsluitend
+de bronnen die het beste overeenkomen met de instructie.
+
+Waarbij elke ID exact overeenkomt met een titel in de kandidatenlijst hieronder
+(de titel fungeert als ID; gebruik de titeltekst exact zoals getoond).
+Geef GEEN verdere toelichting.
+
+INSTRUCTIE:
+{instruction}
+
+KANDIDATEN (Gebruik in uw antwoord exact de titels zoals ze hieronder staan):
+{candidates}
+"""
+
+
 def fill_prompt_template(template: str, **kwargs: Any) -> str:
     """
     Fill a prompt template with provided parameters.

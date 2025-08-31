@@ -1,60 +1,61 @@
 """
-Tool call orchestration for the agent.
+Tool call execution and patch application.
 
-Purpose
--------
-This module is the glue between the LLM's function-calling output and the
-chatbot's internal execution/runtime state. The LLM decides which tools to
-call (and with what arguments) based on the system prompt and conversation.
-The handler executes those tool calls via the ToolManager, updates the
-dossier accordingly, and appends compact tool results back into the
-conversation messages so the LLM can produce a final response.
+What it does (in plain terms):
+- Resolves and executes the tools requested by the model (function calling).
+- Passes the current Dossier plus tool arguments to each tool.
+- Collects DossierPatch objects from tools and applies them under a per‑dossier
+  async lock (single writer per dossier).
+- Appends a compact tool result to the messages for the model (no large content).
+- Returns a tuple: (updated messages, outcomes), where outcomes is a list of
+  {"function": str, "patch": DossierPatch | None} for the agent to present.
 
-
-Interactions with other components
-----------------------------------
-- ToolManager: Used to execute tools and to serialize ToolResult payloads.
-- QuerySession/SessionManager: Tools update the dossier directly; the handler
-  only appends compact tool observations/messages for the LLM. Persisting to
-  disk is performed by the server after a turn completes.
-- AnswerTool: Not called here directly. When the LLM later calls the answer
-  tool, it reads context from the dossier to compose its prompt.
-
-This module does not:
-- Call the LLM for follow-up content (the Agent does that after handling tools).
-- Inject large text into the conversation history.
-- Perform persistence (the Agent triggers persistence in SessionManager).
+What it does NOT do:
+- Format user‑visible messages (the agent presents patches to the user).
+- Persist the dossier (the WebSocket server saves after sending the reply).
+- Make additional LLM calls (the agent controls the LLM dialogue).
 """
 
 from typing import Any, Dict, List
 import json
 import logging
+import asyncio
 
 from src.models import Dossier
-from src.base import ToolManager
+from src.models import DossierPatch
 
 
 class ToolCallHandler:
-    """Execute tool_calls via ToolManager and update the session dossier.
+    """Run model tool calls, apply tool patches, and return outcomes.
 
-    Adds compact tool observations to messages; retrieval tools include
-    metadata only. No persistence or final LLM call here.
+    Simple contract: given a Dossier, the live message list, and the model's
+    tool_calls, this handler executes the tools, applies their DossierPatch
+    results under a per‑dossier lock, appends a compact tool observation to the
+    messages, and returns (messages, outcomes) for the agent to present.
     """
 
-    def __init__(self, tool_manager: ToolManager, logger: logging.Logger | None = None) -> None:
-        self.tool_manager = tool_manager
+    def __init__(self, tools_map: Dict[str, Any], logger: logging.Logger | None = None) -> None:
+        self.tools_map = tools_map
         self.logger = logger or logging.getLogger(__name__)
+        self._locks: Dict[str, asyncio.Lock] = {}
+
+    def _get_lock(self, dossier_id: str) -> asyncio.Lock:
+        if dossier_id not in self._locks:
+            self._locks[dossier_id] = asyncio.Lock()
+        return self._locks[dossier_id]
 
     async def handle(
         self,
         session: Dossier,
         messages: List[Dict[str, Any]],
         response_message: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
-        """Run tool_calls, update dossier, append tool observations.
+    ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Execute tool_calls, apply patches, and return (messages, outcomes).
 
-        - Retrieval: include metadata-only output and append a user-facing message.
-        - Removal: tools should unselect titles in the dossier; handler appends message.
+        - Executes each tool exactly once with the current Dossier and its args.
+        - Applies all returned DossierPatch objects under a per‑dossier lock.
+        - Appends a compact observation message for the model (no large payloads).
+        - Returns (updated messages, outcomes) where outcomes = [{"function", "patch"}].
         """
         # Add assistant message with tool calls
         # Normalize tool_calls to a list of dicts
@@ -83,7 +84,8 @@ class ToolCallHandler:
             assistant_msg["tool_calls"] = normalized_calls
         messages.append(assistant_msg)
 
-        # Execute each tool exactly once and add the serialized result
+        # Execute each tool, collect patches and messages
+        tool_outcomes: List[Dict[str, Any]] = []
         for tool_call in normalized_calls:
             try:
                 if not isinstance(tool_call, dict):
@@ -105,80 +107,31 @@ class ToolCallHandler:
 
                 self.logger.info(f"Executing tool: {function_name}")
 
-                # If the model attempts to call the final answer tool, override
-                # arguments with authoritative data from the session dossier.
-                # No argument injection: tools obtain context from the session/dossier
-
                 # Execute tool and serialize for LLM
-                tool_result = await self.tool_manager.execute_tool(function_name, **arguments)
+                tool_fn = self.tools_map.get(function_name)
+                if not tool_fn:
+                    raise ValueError(f"Unknown tool: {function_name}")
+                tool_result = await tool_fn(dossier=session, **arguments)
                 # For retrieval tools, avoid putting full content in the conversation.
-                if function_name in ["get_legislation", "get_case_law"]:
-                    result_payload = {
-                        "success": tool_result.success,
-                        "data": None,  # prevent large content from entering the transcript
-                        "metadata": {
-                            **(tool_result.metadata or {}),
-                            "note": "content stored in session dossier; titles only in convo"
-                        },
-                    }
-                    result_str = json.dumps(result_payload, ensure_ascii=False)
-                else:
-                    result_str = self.tool_manager.serialize_result_json(tool_result)
-                    result_payload = json.loads(result_str)
+                # Minimal payload back to the LLM; we do not expose full content
+                result_payload = {"success": bool(getattr(tool_result, "success", True))}
+                result_str = json.dumps(result_payload, ensure_ascii=False)
 
                 # Mirror successful source-gathering results into the session (message only)
                 success_flag = False
                 if isinstance(result_payload, dict) and "success" in result_payload:
                     success_flag = bool(result_payload["success"])
-                if function_name in ["get_legislation", "get_case_law"] and success_flag:
-                    md = tool_result.metadata or {}
-                    # Prefer a tool-provided message; otherwise curate titles prompt
-                    if (tool_result.message or "").strip():
-                        session.add_conversation_assistant(tool_result.message.strip())
-                    else:
-                        titles = []
-                        if isinstance(md, dict) and "source_names" in md and md["source_names"]:
-                            titles = list(md["source_names"])[:5]
-                        if titles:
-                            lines = ["Ik vond de volgende bronnen:"]
-                            for i, t in enumerate(titles, 1):
-                                lines.append(f"{i}. {t}")
-                            lines.append("Zijn deze bronnen correct voor uw vraag?")
-                            session.add_conversation_assistant("\n".join(lines))
+                # Record outcome (patch + optional message) for later application
+                if success_flag:
+                    tool_outcomes.append({
+                        "function": function_name,
+                        "patch": tool_result.patch,
+                        "message": tool_result.message,
+                        "data": getattr(tool_result, "data", None),
+                    })
 
                 # Handle removal tool by updating selection (do not delete items)
-                if function_name == "remove_sources" and success_flag:
-                    try:
-                        # Result data may be a Pydantic model or a plain dict
-                        decision = tool_result.data
-                        remove_ids: list[str] = []
-                        # New structured output: DocumentTitles.titles
-                        if hasattr(decision, 'titles'):
-                            remove_ids = list(getattr(decision, 'titles') or [])
-                        elif isinstance(decision, dict):
-                            if 'titles' in decision and decision['titles']:
-                                remove_ids = list(decision['titles'])
-                            elif 'remove_ids' in decision and decision['remove_ids']:
-                                # Backward compatibility
-                                remove_ids = list(decision['remove_ids'])
-
-                        # If the tool already applied changes, it should set the metadata flag.
-                        md = tool_result.metadata or {}
-                        if not (isinstance(md, dict) and md.get("dossier_updated")):
-                            if remove_ids:
-                                before_sel = len(session.dossier.selected_ids)
-                                session.dossier.selected_ids = [sid for sid in session.dossier.selected_ids if sid not in remove_ids]
-                                removed_count = before_sel - len(session.dossier.selected_ids)
-                                self.logger.info(f"Unselected {removed_count} sources via remove_sources tool (handler applied)")
-                                if removed_count > 0:
-                                    session.add_conversation_assistant("Ik heb de genoemde bronnen uit de selectie gehaald.")
-                            # No workflow state machine; rely on conversation
-
-                        # Append any tool-provided assistant message
-                        if (tool_result.message or "").strip():
-                            session.add_conversation_assistant(tool_result.message.strip())
-                    except Exception as e:
-                        self.logger.warning(f"Failed to apply remove_sources decision: {e}")
+                # remove_sources is handled via patches like others; nothing special here
 
                 # Append tool message for the LLM to consume
                 messages.append({
@@ -199,6 +152,28 @@ class ToolCallHandler:
                     "content": error_result,
                 })
 
-        return messages
+        # Apply all patches/messages under a per‑dossier lock
+        try:
+            lock = self._get_lock(session.dossier_id)
+        except Exception:
+            lock = None
+
+        async def _apply_all():
+            for out in tool_outcomes:
+                patch = out.get("patch")
+                if isinstance(patch, DossierPatch):
+                    patch.apply(session)
+                # If a standalone message was returned, append it
+                msg = (out.get("message") or "").strip()
+                if msg:
+                    session.add_conversation_assistant(msg)
+
+        if lock is not None:
+            async with lock:
+                await _apply_all()
+        else:
+            await _apply_all()
+
+        return messages, tool_outcomes
 
     # No per-tool injectors: context-aware tools should read from session/dossier directly

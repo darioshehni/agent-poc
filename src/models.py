@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Optional, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -22,6 +20,66 @@ class DocumentTitles(BaseModel):
     titles: list[str] = Field(default_factory=list, description="Titles of sources")
 
 
+class DossierPatch(BaseModel):
+    """A typed, idempotent patch describing changes to apply to a Dossier.
+
+    Tools return patches; the agent/handler applies them in order under a lock.
+    """
+    add_legislation: list[Legislation] = Field(default_factory=list)
+    add_case_law: list[CaseLaw] = Field(default_factory=list)
+    select_titles: list[str] = Field(default_factory=list)
+    unselect_titles: list[str] = Field(default_factory=list)
+
+    def apply(self, dossier: "Dossier") -> None:
+        """Apply this patch to the in-memory dossier (no I/O)."""
+        # Legislation: de-dup by title
+        if self.add_legislation:
+            existing_titles = {leg.title for leg in dossier.legislation}
+            for item in self.add_legislation:
+                title = (item.title or "").strip()
+                if title and title not in existing_titles:
+                    dossier.legislation.append(item)
+                    existing_titles.add(title)
+
+        # Case law: de-dup by title
+        if self.add_case_law:
+            existing_titles = {case_law.title for case_law in dossier.case_law}
+            for item in self.add_case_law:
+                title = (item.title or "").strip()
+                if title and title not in existing_titles:
+                    dossier.case_law.append(item)
+                    existing_titles.add(title)
+
+        # Unselect first (to resolve conflicts predictably)
+        if self.unselect_titles:
+            keep = [title for title in dossier.selected_ids if title not in set(self.unselect_titles)]
+            dossier.selected_ids = keep
+
+        # Select (set semantics)
+        if self.select_titles:
+            seen = set(dossier.selected_ids)
+            for title in self.select_titles:
+                if title and title not in seen:
+                    dossier.selected_ids.append(title)
+                    seen.add(title)
+
+
+class ToolResult(BaseModel):
+    """Lightweight tool outcome: either a patch or an answer string.
+
+    - success: indicates tool execution status
+    - data: optional payload (e.g., the final answer string for AnswerTool)
+    - error_message: when success is False
+    - message: legacy field (unused for now, but kept for compatibility)
+    - patch: DossierPatch with changes to apply (retrieval/removal tools)
+    """
+    success: bool
+    data: Any | None = None
+    error_message: str = ""
+    message: str = ""
+    patch: DossierPatch | None = None
+
+
 class Dossier(BaseModel):
     """Aggregates sources and curated conversation for one user interaction stream.
 
@@ -30,8 +88,6 @@ class Dossier(BaseModel):
     """
     # Identity and timestamps
     dossier_id: str = ""
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
 
     # Collected sources and curated conversation
     legislation: list[Legislation] = Field(default_factory=list)
@@ -52,19 +108,11 @@ class Dossier(BaseModel):
         return [t for t in titles if (t or "").strip()]
 
     def to_dict(self) -> dict[str, Any]:
-        return self.model_dump()
+        return self.model_dump(mode="json")
 
     @staticmethod
     def from_dict(d: dict[str, Any]) -> "Dossier":
         return Dossier.model_validate(d)
-
-    # --- Selection helpers ---
-    def select_by_ids(self, ids: list[str]) -> None:
-        self.selected_ids = list(dict.fromkeys(ids))  # de-duplicate, preserve order
-
-    def clear_selection(self) -> None:
-        self.selected_ids.clear()
-        self.updated_at = datetime.now()
 
     def _texts_from_legislation(self, items: list[Legislation]) -> list[str]:
         return [getattr(x, 'content', str(x)) for x in items]
@@ -72,22 +120,13 @@ class Dossier(BaseModel):
     def _texts_from_case_law(self, items: list[CaseLaw]) -> list[str]:
         return [getattr(x, 'content', str(x)) for x in items]
 
-    def selected_texts(self) -> dict[str, list[str]]:
-        if not self.selected_ids:
-            return {"legislation": [], "case_law": []}
-        # Titles function as identifiers for selection
-        leg_sel = [l for l in self.legislation if l.title in self.selected_ids]
-        cas_sel = [c for c in self.case_law if c.title in self.selected_ids]
-        return {
-            "legislation": self._texts_from_legislation(leg_sel),
-            "case_law": self._texts_from_case_law(cas_sel),
-        }
+    def get_selected_legislation(self) -> list[Legislation]:
+        """Return selected legislation items."""
+        return [l for l in self.legislation if l.title in self.selected_ids]
 
-    def all_texts(self) -> dict[str, list[str]]:
-        return {
-            "legislation": self._texts_from_legislation(self.legislation),
-            "case_law": self._texts_from_case_law(self.case_law),
-        }
+    def get_selected_case_law(self) -> list[CaseLaw]:
+        """Return selected case law items."""
+        return [c for c in self.case_law if c.title in self.selected_ids]
 
     def selected_titles(self) -> list[str]:
         """Return titles for currently selected sources."""
@@ -107,12 +146,10 @@ class Dossier(BaseModel):
     def add_conversation_user(self, content: str) -> None:
         if isinstance(content, str) and content.strip():
             self.conversation.append({"role": "user", "content": content})
-            self.updated_at = datetime.now()
 
     def add_conversation_assistant(self, content: str) -> None:
         if isinstance(content, str) and content.strip():
             self.conversation.append({"role": "assistant", "content": content})
-            self.updated_at = datetime.now()
 
 
 class RemovalDecision(BaseModel):

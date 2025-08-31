@@ -17,6 +17,6 @@ class ContextBuilder:
     def __init__(self, prompt_getter: Callable[[str], str] = get_prompt_template) -> None:
         self._get_prompt = prompt_getter
 
-    def build_system_prompt(self, session: Dossier) -> str:
+    def build_system_prompt(self, dossier: Dossier) -> str:
         """Return only the base system prompt (no appended context)."""
         return self._get_prompt("agent_system")

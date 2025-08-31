@@ -1,11 +1,13 @@
-"""
-Minimal WebSocket server for the Tax Chatbot.
+
+"""Minimal WebSocket server for the Tax Chatbot.
 
 Per-connection flow:
 - Client connects to /ws and sends one JSON message: {"message": str, "dossier_id"?: str}
 - Server forwards to TaxChatbot and awaits the response
-- Server sends back {"response": str, "dossier_id": str, "status": "success"} and closes the socket
-"""
+- Server sends back {"response": str, "dossier_id": str, "status": "success"}
+- Server persists the dossier snapshot to data/dossiers/<dossier_id>.json and
+  closes the socket"""
+
 
 import logging
 from uuid import uuid4
@@ -14,8 +16,7 @@ from typing import Any, Dict
 from fastapi import FastAPI, WebSocket
 from dotenv import load_dotenv
 
-from src.agent import TaxChatbot
-from src.llm import LlmChat
+from src.agent import TaxAssistant
 
 load_dotenv()
 
@@ -44,15 +45,15 @@ async def websocket_chat(ws: WebSocket) -> None:
             return
 
         # Create a fresh chatbot per connection; session manager loads the dossier if present
-        bot = TaxChatbot(llm_client=LlmChat(), dossier_id=dossier_id)
-        response_text = await bot.process_message(message)
+        assistant = TaxAssistant(dossier_id=dossier_id)
+        response_text = await assistant.process_message(message)
 
         await ws.send_json({"status": "success", "response": response_text, "dossier_id": dossier_id})
         # Persist the updated dossier snapshot to data/dossiers
         try:
-            dossier = bot.session_manager.get_dossier(dossier_id)
+            dossier = assistant.session_manager.get_dossier(dossier_id)
             if dossier:
-                bot.session_manager.save_dossier(dossier)
+                assistant.session_manager.save_dossier(dossier)
         except Exception as e:
             logger.warning(f"Failed to save dossier for id {dossier_id}: {e}")
         await ws.close()
