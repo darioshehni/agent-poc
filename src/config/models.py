@@ -35,22 +35,50 @@ class Dossier(BaseModel):
     conversation: list[dict[str, str]] = Field(default_factory=list, description="User-visible conversation (role/content)")
 
     def add_legislation(self, items: list[Legislation]) -> None:
+        """Add legislation items to the dossier.
+        
+        Args:
+            items: List of legislation items to add
+        """
         self.legislation.extend(items)
 
     def add_case_law(self, items: list[CaseLaw]) -> None:
+        """Add case law items to the dossier.
+        
+        Args:
+            items: List of case law items to add
+        """
         self.case_law.extend(items)
 
     def titles(self) -> list[str]:
+        """Return all source titles (legislation and case law) in the dossier.
+        
+        Returns:
+            List of all source titles with empty/whitespace-only titles filtered out
+        """
         titles: list[str] = []
         titles.extend([l.title for l in self.legislation if (l.title or "").strip()])
         titles.extend([c.title for c in self.case_law if (c.title or "").strip()])
         return [t for t in titles if (t or "").strip()]
 
     def to_dict(self) -> dict[str, Any]:
+        """Convert dossier to dictionary for JSON serialization.
+        
+        Returns:
+            Dictionary representation of the dossier
+        """
         return self.model_dump(mode="json")
 
     @staticmethod
     def from_dict(d: dict[str, Any]) -> "Dossier":
+        """Create dossier from dictionary representation.
+        
+        Args:
+            d: Dictionary containing dossier data
+            
+        Returns:
+            Validated Dossier instance
+        """
         return Dossier.model_validate(d)
 
     def get_selected_legislation(self) -> list[Legislation]:
@@ -76,10 +104,20 @@ class Dossier(BaseModel):
         return titles
 
     def add_conversation_user(self, content: str) -> None:
+        """Add a user message to the conversation history.
+        
+        Args:
+            content: User message content (ignored if empty/whitespace-only)
+        """
         if isinstance(content, str) and content.strip():
             self.conversation.append({"role": "user", "content": content})
 
     def add_conversation_assistant(self, content: str) -> None:
+        """Add an assistant message to the conversation history.
+        
+        Args:
+            content: Assistant message content (ignored if empty/whitespace-only)
+        """
         if isinstance(content, str) and content.strip():
             self.conversation.append({"role": "assistant", "content": content})
 

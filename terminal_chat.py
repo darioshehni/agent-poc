@@ -32,6 +32,16 @@ except ImportError:
 
 
 async def send_ws_message(url: str, message: str, dossier_id: str) -> dict:
+    """Send a message to the tax chatbot WebSocket API.
+    
+    Args:
+        url: WebSocket URL to connect to
+        message: User message to send
+        dossier_id: Dossier identifier for conversation continuity
+        
+    Returns:
+        Dictionary with response from the server
+    """
     async with websockets.connect(url) as ws:
         await ws.send(json.dumps({"message": message, "dossier_id": dossier_id}))
         raw = await ws.recv()
@@ -39,6 +49,11 @@ async def send_ws_message(url: str, message: str, dossier_id: str) -> dict:
 
 
 async def main():
+    """Main terminal chat loop.
+    
+    Handles command line argument parsing, WebSocket communication,
+    and provides an interactive chat interface for the tax chatbot.
+    """
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Tax Chatbot (WebSocket client)")
     parser.add_argument(

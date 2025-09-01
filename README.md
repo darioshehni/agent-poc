@@ -1,4 +1,4 @@
-# TESS - Dutch Tax Chatbot
+# TESS - Tax Assistant
 
 A sophisticated Dutch tax advisory chatbot built with a clean, dossier-first architecture. TESS (Tax Expert Support System) helps users with Nederlandse belastingvragen through intelligent source retrieval, selection, and comprehensive answer generation.
 

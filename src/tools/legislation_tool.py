@@ -17,6 +17,11 @@ class LegislationTool:
     """Tool for retrieving relevant Dutch tax legislation."""
     
     def __init__(self):
+        """Initialize the legislation tool with sample Dutch tax legislation.
+        
+        Note: This is a dummy implementation with hardcoded sample data.
+        Real implementations should replace this with actual search functionality.
+        """
         self._sample_legislation: list[Legislation] = [
             Legislation(
                 title="Wet op de vennootschapsbelasting 1969, artikel 13",
@@ -57,9 +62,19 @@ class LegislationTool:
         }
     
     async def execute(self, query: str, dossier=None, **_: Any) -> dict:
-        """Dummy implementation: always return the sample legislation as a patch.
-
-        Real implementations will replace this with actual retrieval.
+        """Retrieve relevant Dutch tax legislation based on the query.
+        
+        Currently returns hardcoded sample legislation. Real implementations
+        should perform actual search against legislation databases.
+        
+        Args:
+            query: Tax question or topic to search legislation for
+            dossier: Current dossier (unused in this implementation)
+            **_: Additional arguments (ignored)
+            
+        Returns:
+            Dictionary with 'success', 'data', and 'patch' keys. The patch
+            contains legislation to add and titles to select.
         """
         try:
             items = list(self._sample_legislation)

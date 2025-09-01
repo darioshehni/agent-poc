@@ -31,6 +31,11 @@ class AnswerTool:
         self,
         llm_client: LlmChat
     ):
+        """Initialize the answer generation tool.
+        
+        Args:
+            llm_client: LLM client for generating comprehensive tax answers
+        """
         self.llm_client = llm_client
     
     @property
@@ -55,14 +60,22 @@ class AnswerTool:
         }
     
     async def execute(self, query: str, dossier: Dossier) -> dict:
-        """
-        Generate a comprehensive tax answer using sources from the session dossier.
+        """Generate a comprehensive tax answer using selected sources from the dossier.
         
-        This tool:
-        1. Validates input sources
-        2. Creates a structured prompt with sources
-        3. Uses LLM to generate comprehensive answer
-        4. Validates and formats the response
+        Uses the currently selected legislation and case law to build a structured
+        prompt for comprehensive answer generation. Sources are formatted and fed
+        to the LLM only at answer time, keeping them out of the conversation transcript.
+        
+        Args:
+            query: Original tax question from the user
+            dossier: Current dossier containing selected sources
+            
+        Returns:
+            Dictionary with 'success' and 'message' keys. The message contains
+            the generated comprehensive answer.
+            
+        Raises:
+            ValueError: If query is empty or LLM generation fails
         """
         
         try:
@@ -109,7 +122,14 @@ class AnswerTool:
 
 
     def _format_sources(self, sources: list[any]) -> str:
-        """Format a list of source texts for inclusion in the prompt."""
+        """Format source list for inclusion in the answer generation prompt.
+        
+        Args:
+            sources: List of Legislation or CaseLaw objects
+            
+        Returns:
+            Formatted string with numbered sources, or default message if empty
+        """
         if not sources:
             return "Geen bronnen beschikbaar.\n"
 

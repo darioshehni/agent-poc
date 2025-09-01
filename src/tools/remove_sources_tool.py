@@ -30,7 +30,11 @@ class RemoveSourcesTool:
         self,
         llm_client: LlmChat,
     ):
-        # Expect an async LlmChat client
+        """Initialize the source removal tool.
+        
+        Args:
+            llm_client: LLM client for parsing natural language removal queries
+        """
         self.llm_client = llm_client
 
     @property
@@ -55,6 +59,22 @@ class RemoveSourcesTool:
         }
 
     async def execute(self, query: str, dossier: Dossier) -> dict:
+        """Remove sources from dossier selection based on natural language query.
+        
+        Uses structured LLM parsing to map user language (e.g., "remove article 13") 
+        to specific source titles in the dossier. Only removes from currently selected sources.
+        
+        Args:
+            query: Natural language instruction for which sources to remove or keep
+            dossier: Current dossier with selected sources
+            
+        Returns:
+            Dictionary with 'success', 'data', 'message', and 'patch' keys.
+            The patch contains titles to unselect from the dossier.
+            
+        Raises:
+            Exception: If LLM parsing fails or other execution errors occur
+        """
         try:
             if not query.strip():
                 raise ValueError("Query cannot be empty")

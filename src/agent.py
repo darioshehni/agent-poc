@@ -37,7 +37,15 @@ logger = logging.getLogger(__name__)
 
 
 def _apply_patches_to_in_memory_dossier(dossier: Dossier, tool_results: list[ToolResult]) -> Dossier:
-    """Update the dossier based on tool results and return it."""
+    """Apply all DossierPatch objects from tool results to update the dossier.
+    
+    Args:
+        dossier: The dossier to update
+        tool_results: List of tool execution results that may contain patches
+        
+    Returns:
+        Updated dossier with all patches applied
+    """
     for output in tool_results:
         patch = output.patch
         if not patch:
@@ -61,11 +69,14 @@ class TESS:
         self,
         dossier_id: str = "",
     ):
-        """
-        Initialize the chatbot with clean architecture components.
+        """Initialize the TESS agent with a specific dossier.
+        
+        Creates or loads the dossier, initializes the LLM client, and sets up
+        all available tools for the conversation.
         
         Args:
-            dossier_id: Identifier for this dossier
+            dossier_id: Unique identifier for the dossier. If empty, loads/creates
+                       a dossier with this ID, or generates new ID if not found.
         """
         self.dossier = get_or_create_dossier(dossier_id=dossier_id)
         self.dossier_id = self.dossier.dossier_id
@@ -76,7 +87,14 @@ class TESS:
         logger.info(f"Initialized TESS for dossier {self.dossier_id}")
 
     def _setup_tool_call_handler(self) -> ToolCallHandler:
-        """Register all available tools."""
+        """Initialize and register all available tools for the agent.
+        
+        Creates instances of all tools, builds the tools mapping for execution,
+        and constructs function calling schemas for the LLM.
+        
+        Returns:
+            Configured ToolCallHandler with all tools registered
+        """
 
         # Create tool instances
         answer_tool = AnswerTool(llm_client=self.llm_client)
@@ -106,15 +124,24 @@ class TESS:
 
 
     async def process_message(self, user_input: str) -> str:
-        """
-        Main entry point for processing user messages.
+        """Main entry point for processing user messages.
         
-        This method:
-        1. Gets or creates dossier
-        2. Checks for commands first
-        3. Processes with AI if not a command
-        4. Updates workflow state
-        5. Returns appropriate response
+        Processes a user message through the complete TESS pipeline:
+        1. Adds user message to dossier conversation
+        2. Calls LLM with available tools 
+        3. Executes any requested tool calls
+        4. Applies patches to update dossier state
+        5. Generates user-facing response
+        6. Persists updated dossier
+        
+        Args:
+            user_input: The user's message to process
+            
+        Returns:
+            Assistant's response string
+            
+        Raises:
+            ValueError: If message processing fails
         """
 
         try:
@@ -130,7 +157,17 @@ class TESS:
             # return f"Er is een onverwachte fout opgetreden: {str(e)}. Probeer het opnieuw."
 
     async def _process_with_ai(self, dossier: Dossier) -> str:
-        """Process one user turn using LLM + tools, returning assistant text."""
+        """Process one conversation turn using LLM with tool calling support.
+        
+        Builds the message context from dossier conversation, calls LLM with
+        available tools, executes any tool calls, and generates the final response.
+        
+        Args:
+            dossier: Current dossier with conversation and sources
+            
+        Returns:
+            Generated assistant response text
+        """
 
         system_prompt = [{"role": "system", "content": AGENT_SYSTEM_PROMPT}]
         conversation = dossier.conversation

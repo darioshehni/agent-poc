@@ -29,11 +29,36 @@ app = FastAPI(title="Tax Chatbot WS API", version="2.0.0")
 
 @app.get("/")
 async def root() -> Dict[str, Any]:
+    """API information endpoint.
+    
+    Returns:
+        Dictionary with API name, version, and WebSocket endpoint information
+    """
     return {"name": "Tax Chatbot WS API", "version": "2.0.0", "endpoint": "/ws"}
 
 
 @app.websocket("/ws")
 async def websocket_chat(ws: WebSocket) -> None:
+    """WebSocket endpoint for tax chatbot conversations.
+    
+    Handles the complete conversation flow:
+    1. Accepts WebSocket connection
+    2. Receives JSON message with user input and optional dossier ID
+    3. Creates TESS agent instance with the dossier
+    4. Processes the message and generates response
+    5. Sends response back to client
+    6. Closes connection
+    
+    Expected message format:
+        {"message": str, "dossier_id"?: str}
+        
+    Response format:
+        Success: {"status": "success", "response": str, "dossier_id": str}
+        Error: {"status": "error", "error": str}
+        
+    Args:
+        ws: WebSocket connection instance
+    """
     await ws.accept()
     try:
         payload = await ws.receive_json()

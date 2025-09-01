@@ -19,12 +19,21 @@ logger = logging.getLogger(__name__)
 
 
 class RestoreSourcesTool:
-    """Bepaal welke titels (uit de niet‑geselecteerde lijst) hersteld moeten worden."""
+    """Restore previously unselected sources back to the dossier selection.
+    
+    Uses natural language parsing to determine which document titles from the
+    unselected list should be restored based on user queries.
+    """
 
     def __init__(
         self,
         llm_client: LlmChat,
     ):
+        """Initialize the source restoration tool.
+        
+        Args:
+            llm_client: LLM client for parsing natural language restoration queries
+        """
         self.llm_client = llm_client
 
     @property
@@ -49,6 +58,22 @@ class RestoreSourcesTool:
         }
 
     async def execute(self, query: str, dossier: Dossier) -> dict:
+        """Restore sources to dossier selection based on natural language query.
+        
+        Uses structured LLM parsing to map user language (e.g., "restore article 13")
+        to specific source titles from the unselected sources in the dossier.
+        
+        Args:
+            query: Natural language instruction for which sources to restore
+            dossier: Current dossier with unselected sources available for restoration
+            
+        Returns:
+            Dictionary with 'success', 'data', and 'patch' keys.
+            The patch contains titles to select in the dossier.
+            
+        Raises:
+            Exception: If LLM parsing fails or other execution errors occur
+        """
         try:
             query = (query or "").strip()
             if not query:

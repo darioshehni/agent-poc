@@ -30,6 +30,11 @@ class ToolCallHandler:
     """
 
     def __init__(self, tools_map: dict[str, Any]) -> None:
+        """Initialize the tool call handler with available tools.
+        
+        Args:
+            tools_map: Dictionary mapping tool names to their executable functions
+        """
         self.tools_map = tools_map
 
     async def run(
@@ -37,11 +42,20 @@ class ToolCallHandler:
         dossier: Dossier,
         tool_calls: list[dict[str, Any]],
     ) -> list[ToolResult]:
-        """Execute tool_calls, apply patches to dossier, and return outcomes.
-
-        - Executes each tool exactly once with the current Dossier and its args.
-        - Applies all returned DossierPatch objects under a per‑dossier lock.
-        - Returns outcomes = [{"function", "patch", "message", "data", "success"}].
+        """Execute tool calls and return structured results.
+        
+        Executes each tool exactly once with the current dossier and parsed arguments.
+        Tools return response dictionaries that are converted to ToolResult objects.
+        
+        Args:
+            dossier: Current dossier state to pass to tools
+            tool_calls: List of tool call dictionaries from LLM (with function name and arguments)
+            
+        Returns:
+            List of ToolResult objects containing execution outcomes, patches, and data
+            
+        Raises:
+            Exception: If any tool execution fails (re-raises the original exception)
         """
         # Execute each tool, collect patches and messages.
         tool_outcomes: list[ToolResult] = []

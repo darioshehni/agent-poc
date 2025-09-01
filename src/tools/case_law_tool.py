@@ -17,6 +17,11 @@ class CaseLawTool:
     """Tool for retrieving relevant Dutch tax case law and jurisprudence."""
     
     def __init__(self):
+        """Initialize the case law tool with sample Dutch tax jurisprudence.
+        
+        Note: This is a dummy implementation with hardcoded sample data.
+        Real implementations should replace this with actual case law search.
+        """
         self._sample_case_law: list[CaseLaw] = [
             CaseLaw(
                 title="ECLI:NL:HR:2020:123",
@@ -54,7 +59,20 @@ class CaseLawTool:
         }
     
     async def execute(self, query: str, dossier=None, **_: Any) -> dict:
-        """Dummy implementation: always return the sample case law as a patch."""
+        """Retrieve relevant Dutch tax case law based on the query.
+        
+        Currently returns hardcoded sample case law. Real implementations
+        should perform actual search against case law databases.
+        
+        Args:
+            query: Tax question or topic to search case law for
+            dossier: Current dossier (unused in this implementation)
+            **_: Additional arguments (ignored)
+            
+        Returns:
+            Dictionary with 'success', 'data', and 'patch' keys. The patch
+            contains case law to add and titles to select.
+        """
         logger.debug("Case law tool called")
         try:
             items = list(self._sample_case_law)

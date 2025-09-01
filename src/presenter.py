@@ -16,7 +16,21 @@ from src.config.prompts import RETRIEVAL_TITLES_HEADER, SELECTED_CONFIRMATION, S
 
 
 def present_outcomes(tool_results: list[ToolResult]) -> str:
-    """Aggregate patches across outcomes and produce assistant messages."""
+    """Generate user-facing messages from tool execution results.
+    
+    Analyzes patches from tool results and creates formatted messages that inform
+    the user about source retrievals, selections, and unselections. Handles:
+    - New source retrievals (legislation and case law)
+    - Source selections and unselections  
+    - Direct tool messages (e.g., from AnswerTool)
+    
+    Args:
+        tool_results: List of tool execution results with patches and messages
+        
+    Returns:
+        Formatted assistant message string for the user, or a default message
+        if no changes were made
+    """
     retrieved_titles: list[str] = []
     selected_titles: list[str] = []
     unselected_titles: list[str] = []

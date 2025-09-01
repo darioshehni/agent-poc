@@ -4,9 +4,6 @@ Streamlit UI client for the Tax Chatbot (WebSocket backend).
 Run:
     streamlit run ui_streamlit.py
 
-Environment:
-    TAX_WS_URL (default: ws://localhost:8000/ws)
-
 Notes:
     - One message per WS connection; the server persists the dossier after reply.
     - Reuse the same dossier id to continue a conversation.
@@ -23,17 +20,26 @@ from pathlib import Path
 import time
 
 import streamlit as st
+import websockets
+from dotenv import load_dotenv
 
-try:
-    import websockets
-except ImportError:  # pragma: no cover
-    st.stop()
+load_dotenv()
 
 
-DEFAULT_WS_URL = os.getenv("TAX_WS_URL", "ws://localhost:8000/ws")
+DEFAULT_WS_URL = os.getenv("TAX_WS_URL", f"ws://localhost:{os.environ['API_HOST']}/ws")
 
 
 async def send_ws_message(url: str, message: str, dossier_id: str) -> Dict[str, Any]:
+    """Send a message to the tax chatbot WebSocket API.
+    
+    Args:
+        url: WebSocket URL to connect to
+        message: User message to send
+        dossier_id: Dossier identifier for conversation continuity
+        
+    Returns:
+        Dictionary with response from the server
+    """
     async with websockets.connect(url) as ws:
         payload = {"message": message, "dossier_id": dossier_id}
         await ws.send(json.dumps(payload))
@@ -42,7 +48,17 @@ async def send_ws_message(url: str, message: str, dossier_id: str) -> Dict[str, 
 
 
 def run_async(coro):
-    """Run an async coroutine from Streamlit (handles existing loop cases)."""
+    """Run an async coroutine from Streamlit context.
+    
+    Handles cases where an event loop may already be running in the Streamlit
+    environment by creating a new loop if needed.
+    
+    Args:
+        coro: Coroutine to execute
+        
+    Returns:
+        Result of the coroutine execution
+    """
     try:
         return asyncio.run(coro)
     except RuntimeError:
@@ -55,6 +71,11 @@ def run_async(coro):
 
 
 def init_state():
+    """Initialize Streamlit session state with default values.
+    
+    Sets up WebSocket URL, dossier ID, conversation history,
+    and selected source titles if not already present.
+    """
     if "ws_url" not in st.session_state:
         st.session_state.ws_url = DEFAULT_WS_URL
     if "current_dossier_id" not in st.session_state:
@@ -66,6 +87,12 @@ def init_state():
 
 
 def reset_conversation(new_dossier: bool = True):
+    """Reset the conversation state.
+    
+    Args:
+        new_dossier: If True, generates a new dossier ID. If False,
+                    keeps the existing dossier but clears history.
+    """
     if new_dossier:
         st.session_state.current_dossier_id = f"dos-{uuid.uuid4().hex[:8]}"
     st.session_state.history = []
@@ -73,11 +100,29 @@ def reset_conversation(new_dossier: bool = True):
 
 
 def _strip_number_prefix(s: str) -> str:
+    """Remove numbered list prefixes from strings.
+    
+    Args:
+        s: String that may have a numbered prefix like "1. "
+        
+    Returns:
+        String with numbered prefix removed
+    """
     import re as _re
     return _re.sub(r"^\s*\d+\.\s*", "", s).strip()
 
 
 def _extract_block(lines: List[str], header: str, stop_headers: List[str]) -> List[str]:
+    """Extract a block of text between headers.
+    
+    Args:
+        lines: List of text lines to search
+        header: Header text to start extraction from
+        stop_headers: List of headers that stop extraction
+        
+    Returns:
+        List of extracted lines with numbered prefixes removed
+    """
     try:
         idx = next(i for i, ln in enumerate(lines) if ln.strip().startswith(header))
     except StopIteration:
@@ -175,7 +220,7 @@ def main():
     st.set_page_config(page_title="TESS • Belasting Chatbot", page_icon="💬")
     init_state()
 
-    st.title("TESS • Nederlandse Belasting Chatbot")
+    st.title("TESS • Belasting Chatbot")
     st.caption("Deze UI praat met de WebSocket server op /ws en bewaart je dossier-id zodat je een gesprek kunt vervolgen.")
 
     with st.sidebar:

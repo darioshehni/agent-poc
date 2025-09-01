@@ -38,11 +38,23 @@ class LlmChat:
     """Handle LLM interaction: prompt formatting, chat (tools/structured)."""
 
     def __init__(self, logger_: Optional[logging.Logger] = None) -> None:
+        """Initialize the LLM chat client.
+        
+        Args:
+            logger_: Optional custom logger instance. Uses module logger if None.
+        """
         self.logger = logger_ or logging.getLogger(__name__)
         self._openai_client = self._get_openai_client()
 
     def _get_openai_client(self) -> AsyncOpenAI:
-        """Initialize and return AsyncOpenAI client."""
+        """Initialize and return AsyncOpenAI client.
+        
+        Returns:
+            Configured AsyncOpenAI client instance
+            
+        Raises:
+            Exception: If OPENAI_API_KEY environment variable is missing or client init fails
+        """
         try:
             api_key = os.environ["OPENAI_API_KEY"]
             return AsyncOpenAI(api_key=api_key)
@@ -52,7 +64,15 @@ class LlmChat:
 
     @staticmethod
     def fill_prompt_template(prompt_template: str, prompt_kwargs: Dict[str, str]) -> str:
-        """Fill placeholders like {name} with values from prompt_kwargs."""
+        """Fill template placeholders with provided values.
+        
+        Args:
+            prompt_template: Template string with {key} placeholders
+            prompt_kwargs: Dictionary of key-value pairs to substitute
+            
+        Returns:
+            Template string with all placeholders replaced
+        """
         for key, value in prompt_kwargs.items():
             prompt_template = prompt_template.replace(f"{{{key}}}", value)
         return prompt_template
@@ -66,7 +86,24 @@ class LlmChat:
         temperature: float = 0.0,
         **kwargs: Any,
     ) -> LlmAnswer:
-        """Chat; `messages` may be a full list or a single user string."""
+        """Perform a chat completion with optional tool calling support.
+        
+        Args:
+            messages: Either a list of message dicts with 'role' and 'content' keys,
+                     or a single string that will be treated as a user message
+            model_name: OpenAI model name (e.g., 'gpt-4o')
+            tools: Optional list of tool/function schemas for function calling
+            tool_choice: How the model should choose tools ('auto', 'none', or specific tool)
+            temperature: Sampling temperature (0.0 for deterministic)
+            **kwargs: Additional parameters passed to OpenAI API
+            
+        Returns:
+            LlmAnswer containing the response text and any tool calls requested
+            
+        Raises:
+            ValueError: If messages is empty
+            Exception: If OpenAI API call fails
+        """
 
         if not messages:
             raise ValueError ("messages cannot be empty")
@@ -134,10 +171,21 @@ class LlmChat:
         model_name: str,
         response_format: Type[BaseModel],
     ) -> BaseModel:
-        """Structured call that returns a parsed Pydantic model (no tools).
-
-        Preferred path: use Responses API structured parsing when available.
-        Fallback: prompt Chat Completions to emit strict JSON and parse locally.
+        """Perform structured chat completion that returns a parsed Pydantic model.
+        
+        Uses OpenAI's Responses API if available for structured parsing, otherwise
+        falls back to prompting for JSON and parsing locally.
+        
+        Args:
+            messages: Either a list of message dicts or a single string
+            model_name: OpenAI model name
+            response_format: Pydantic model class to parse response into
+            
+        Returns:
+            Instance of the specified Pydantic model with parsed response data
+            
+        Raises:
+            Exception: If both structured API and fallback JSON parsing fail
         """
         # Try Responses API first (if available in installed SDK)
         try:

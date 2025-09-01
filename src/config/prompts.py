@@ -110,44 +110,48 @@ SELECTED_CONFIRMATION = "Zijn deze bronnen correct voor uw vraag?"
 
 
 def fill_prompt_template(template: str, **kwargs: Any) -> str:
- """
- Fill a prompt template with provided parameters.
- 
- Args:
-  template: The prompt template string with {placeholders}
-  **kwargs: Key-value pairs to fill in the template
- 
- Returns:
-  Filled prompt string
- 
- Raises:
-  KeyError: If template requires parameters not provided in kwargs
- """
- try:
-  return template.format(**kwargs)
- except KeyError as e:
-  raise KeyError(f"Missing required parameter for prompt template: {e}")
+    """Fill a prompt template with provided parameters.
+    
+    Replaces {placeholder} tokens in the template string with corresponding
+    values from kwargs.
+    
+    Args:
+        template: The prompt template string with {placeholders}
+        **kwargs: Key-value pairs to fill in the template
+        
+    Returns:
+        Filled prompt string with all placeholders replaced
+        
+    Raises:
+        KeyError: If template requires parameters not provided in kwargs
+    """
+    try:
+        return template.format(**kwargs)
+    except KeyError as e:
+        raise KeyError(f"Missing required parameter for prompt template: {e}")
 
 
 def get_prompt_template(template_name: str) -> str:
- """
- Get a specific prompt template by name.
- 
- Args:
-  template_name: Name of the template to retrieve
-  
- Returns:
-  The prompt template string
-  
- Raises:
-  ValueError: If template_name is not found
- """
- templates = {
-  'agent_system': AGENT_SYSTEM_PROMPT,
-  'answer_generation': ANSWER_GENERATION_PROMPT,
- }
- 
- if template_name not in templates:
-  raise ValueError(f"Unknown template: {template_name}. Available: {list(templates.keys())}")
- 
- return templates[template_name]
+    """Get a specific prompt template by name.
+    
+    Retrieves predefined prompt templates for different purposes in the system.
+    Available templates include agent system prompts and answer generation templates.
+    
+    Args:
+        template_name: Name of the template to retrieve
+        
+    Returns:
+        The prompt template string
+        
+    Raises:
+        ValueError: If template_name is not found in available templates
+    """
+    templates = {
+        'agent_system': AGENT_SYSTEM_PROMPT,
+        'answer_generation': ANSWER_GENERATION_PROMPT,
+    }
+    
+    if template_name not in templates:
+        raise ValueError(f"Unknown template: {template_name}. Available: {list(templates.keys())}")
+    
+    return templates[template_name]
