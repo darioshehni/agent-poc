@@ -8,7 +8,7 @@ The agent is responsible for presenting user-facing messages.
 from typing import Any
 import logging
 
-from src.config.models import DossierPatch, ToolResult, Legislation
+from src.config.models import DossierPatch, Legislation
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class LegislationTool:
             "required": ["query"]
         }
     
-    async def execute(self, query: str, dossier=None, **_: Any) -> ToolResult:
+    async def execute(self, query: str, dossier=None, **_: Any) -> dict:
         """Dummy implementation: always return the sample legislation as a patch.
 
         Real implementations will replace this with actual retrieval.
@@ -64,13 +64,11 @@ class LegislationTool:
         try:
             items = list(self._sample_legislation)
             titles = [x.title for x in items if (x.title or '').strip()]
-
             patch = DossierPatch(
                 add_legislation=items,
-                select_titles=[t for t in titles if t],
+                select_titles=titles,
             )
-
-            return ToolResult(success=True, data=None, message="", patch=patch)
+            return {"success":True, "data": None, "patch": patch}
         except Exception as e:
             logger.error(f"LegislationTool failed: {e}", exc_info=True)
-            return ToolResult(success=False, data=None, error_message=str(e))
+            return {"success": False, "data": None, "error_message": str(e)}

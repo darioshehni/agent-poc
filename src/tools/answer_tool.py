@@ -10,7 +10,6 @@ answer time via the prompt constructed here.
 from typing import Any
 import logging
 
-from src.config.models import ToolResult
 from src.llm import LlmChat, LlmAnswer
 from src.config.prompts import get_prompt_template, fill_prompt_template
 from src.config.models import Dossier
@@ -55,7 +54,7 @@ class AnswerTool:
             "required": ["query"]
         }
     
-    async def execute(self, query: str, dossier: Dossier) -> ToolResult:
+    async def execute(self, query: str, dossier: Dossier) -> dict:
         """
         Generate a comprehensive tax answer using sources from the session dossier.
         
@@ -88,24 +87,21 @@ class AnswerTool:
                 legislation=legislation_context,
                 case_law=case_law_context
             )
-            print(prompt)
-            
+
             llm_answer: LlmAnswer = await self.llm_client.chat(
                 messages=prompt,
                 model_name=OpenAIModels.GPT_4O.value,
                 temperature=0.0,
             )
             answer = llm_answer.answer
-            print(answer)
-            
+
             if not answer:
                 raise ValueError("LLM generated empty response")
             
             # Return answer text. Agent will append it to the conversation
-            result = ToolResult(success=True, data=answer.strip())
-            
             logger.info("Answer generated successfully")
-            return result
+            return {"success": True, "message": answer.strip()}
+
             
         except Exception as e:
             logger.error(f"Error generating answer: {str(e)}", exc_info=True)

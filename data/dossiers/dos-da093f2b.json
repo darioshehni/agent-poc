@@ -1,0 +1,16 @@
+{
+  "dossier_id": "dos-da093f2b",
+  "legislation": [],
+  "case_law": [],
+  "selected_ids": [],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "hi wat is de btw op tandpasta"
+    },
+    {
+      "role": "assistant",
+      "content": "De btw op tandpasta in Nederland valt onder het algemene btw-tarief van 21%. Tandpasta wordt beschouwd als een luxeproduct en valt daarom niet onder het verlaagde tarief van 9% dat geldt voor essentiële goederen zoals voedsel en medicijnen."
+    }
+  ]
+}

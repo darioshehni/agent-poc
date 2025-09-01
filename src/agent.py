@@ -26,7 +26,7 @@ from src.tools.remove_sources_tool import RemoveSourcesTool
 from src.tools.restore_sources_tool import RestoreSourcesTool
 from src.presenter import present_outcomes
 from src.tool_calls import ToolCallHandler
-from src.config.models import Dossier
+from src.config.models import Dossier, DossierPatch, ToolResult
 from src.config.prompts import AGENT_SYSTEM_PROMPT
 from src.config.config import OpenAIModels
 
@@ -34,6 +34,17 @@ from src.config.config import OpenAIModels
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _apply_patches_to_in_memory_dossier(dossier: Dossier, tool_results: list[ToolResult]) -> Dossier:
+    """Update the dossier based on tool results and return it."""
+    for output in tool_results:
+        patch = output.patch
+        if not patch:
+            continue
+        if isinstance(patch, DossierPatch):
+            dossier = patch.apply(dossier=dossier)
+    return dossier
 
 
 class TESS:
@@ -45,7 +56,7 @@ class TESS:
     - Delegate tool-call execution and context construction to helpers
     - Return the assistant's final response as a string
     """
-    
+
     def __init__(
         self,
         dossier_id: str = "",
@@ -56,14 +67,14 @@ class TESS:
         Args:
             dossier_id: Identifier for this dossier
         """
-        self.dossier: Dossier = get_or_create_dossier(dossier_id=dossier_id)
+        self.dossier = get_or_create_dossier(dossier_id=dossier_id)
         self.dossier_id = self.dossier.dossier_id
+
         self.llm_client = LlmChat()
         self.tool_call_handler = self._setup_tool_call_handler()
 
         logger.info(f"Initialized TESS for dossier {self.dossier_id}")
 
-    
     def _setup_tool_call_handler(self) -> ToolCallHandler:
         """Register all available tools."""
 
@@ -93,7 +104,7 @@ class TESS:
         logger.info(f"Registered {len(tools)} tools")
         return ToolCallHandler(tools)
 
-    
+
     async def process_message(self, user_input: str) -> str:
         """
         Main entry point for processing user messages.
@@ -105,75 +116,52 @@ class TESS:
         4. Updates workflow state
         5. Returns appropriate response
         """
-        
-        try:
-            self.dossier.add_conversation_user(content=user_input)
-            
-            logger.info(f"Processing message for dossier {self.dossier_id}: {user_input[:50]}...")
 
-            response = await self._process_with_ai(dossier=self.dossier)
-            
-            # Add assistant response to dossier conversation
-            self.dossier.add_conversation_assistant(response)
-            save_dossier(dossier=self.dossier)
-            
+        try:
+            dossier = self.dossier
+            dossier.add_conversation_user(content=user_input)
+
+            logger.info(f"Processing message for dossier {self.dossier_id}: {user_input[:50]}...")
+            response = await self._process_with_ai(dossier=dossier)
             return response
-            
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}", exc_info=True)
             raise ValueError(f"Error processing message: {str(e)}")
             # return f"Er is een onverwachte fout opgetreden: {str(e)}. Probeer het opnieuw."
-    
+
     async def _process_with_ai(self, dossier: Dossier) -> str:
         """Process one user turn using LLM + tools, returning assistant text."""
 
         system_prompt = [{"role": "system", "content": AGENT_SYSTEM_PROMPT}]
         conversation = dossier.conversation
 
-        tools = self.tool_schemas
         logger.info(f"AGENT: last_msg={conversation[-1]['content'][:60]}")
 
-        try:
-            logger.info("AGENT: chat request")
-            llm_answer: LlmAnswer = await self.llm_client.chat(
-                messages=system_prompt + conversation,
-                model_name=OpenAIModels.GPT_4O.value,
-                tools=tools,
-                temperature=0.0,
+        logger.info("AGENT: chat request")
+        llm_answer: LlmAnswer = await self.llm_client.chat(
+            messages=system_prompt + conversation,
+            model_name=OpenAIModels.GPT_4O.value,
+            tools=self.tool_schemas,
+            temperature=0.0,
+        )
+
+        # Handle function calls
+        if llm_answer.tool_calls:
+            logger.info(f"AGENT: tool_calls: {[tool['function']['name'] for tool in llm_answer.tool_calls]}")
+            # Execute tool calls.
+            tool_results = await self.tool_call_handler.run(
+                dossier=dossier,
+                tool_calls=llm_answer.tool_calls,
             )
-            response_message = {"content": llm_answer.answer, "tool_calls": llm_answer.tool_calls}
-            
-            # Handle function calls
-            if response_message["tool_calls"]:
-                logger.info(f"AGENT: tool_calls: {[tool['function']['name'] for tool in llm_answer.tool_calls]}")
-                # Execute tool calls with arguments given by the agent.
-                tool_calls = await self.tool_call_handler.run(
-                    dossier=dossier,
-                    tool_calls=llm_answer.tool_calls,
-                )
+            dossier = _apply_patches_to_in_memory_dossier(dossier=dossier, tool_results=tool_results)
 
-                outcome_messages = present_outcomes(outcomes=tool_calls, dossier=dossier)
-                if outcome_messages:
-                    # Return these to the user now; do not proceed to final LLM answer
-                    # The WebSocket server expects a single string, so join if multiple
-                    combined = "\n\n".join(outcome_messages)
-                    logger.info("AGENT: returning presenter messages")
-                    return combined
+            # Explain tool outcomes to the user.
+            assistant_response = present_outcomes(tool_results=tool_results)
+        else:
+            # Direct response without function calls
+            logger.info("AGENT: no tool_calls: returning direct content.")
+            assistant_response = llm_answer.answer
 
-                # If AnswerTool produced an answer, return it directly
-                for tool_call in tool_calls:
-                    if tool_call["function"] == "generate_tax_answer":
-                        return tool_call["data"]
-
-                # If no outcome messages and no AnswerTool, provide a safe fallback
-                logger.info("AGENT: tools executed but no presenter messages; returning fallback")
-                return "Ik heb bronnen verzameld, maar kon geen titels presenteren. Kunt u uw vraag iets aanscherpen?"
-            else:
-                # Direct response without function calls
-                logger.info("AGENT: no tool_calls; returning direct content")
-                return response_message["content"] or "Ik kon geen passend antwoord genereren."
-
-        except Exception as e:
-            logger.error(f"Error in AI processing: {str(e)}")
-            raise ValueError(f"Error in AI processing: {str(e)}")
-            #return f"Er is een fout opgetreden bij het verwerken van uw vraag: {str(e)}"
+        dossier.add_conversation_assistant(content=assistant_response)
+        save_dossier(dossier=dossier)
+        return assistant_response

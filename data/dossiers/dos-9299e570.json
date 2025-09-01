@@ -1,0 +1,36 @@
+{
+  "dossier_id": "dos-9299e570",
+  "legislation": [],
+  "case_law": [
+    {
+      "title": "ECLI:NL:HR:2020:123",
+      "content": "Geschil over btw-classificatie en tarieftoepassing. Het btw tarief op tandpasta is 0%"
+    },
+    {
+      "title": "ECLI:NL:RBAMS:2021:456",
+      "content": "Deelnemingsvrijstelling vereist een zakelijk motief."
+    }
+  ],
+  "selected_ids": [
+    "ECLI:NL:HR:2020:123",
+    "ECLI:NL:RBAMS:2021:456"
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "wat is de btw op tanpasta"
+    },
+    {
+      "role": "assistant",
+      "content": "De BTW op tandpasta in Nederland valt onder het lage tarief van 9%. Dit tarief geldt voor de meeste dagelijkse levensmiddelen en verzorgingsproducten."
+    },
+    {
+      "role": "user",
+      "content": "gebruik bronnen, specifiek juripsrudentie"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende nieuwe bronnen:\n -ECLI:NL:HR:2020:123\n- ECLI:NL:RBAMS:2021:456Zijn deze bronnen correct voor uw vraag?\n"
+    }
+  ]
+}

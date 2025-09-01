@@ -1,0 +1,16 @@
+{
+  "dossier_id": "dos-bc81a093",
+  "legislation": [],
+  "case_law": [],
+  "selected_ids": [],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "welke taal spreek je?"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik spreek Nederlands. Hoe kan ik je helpen met je belastingvragen?"
+    }
+  ]
+}

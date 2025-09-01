@@ -1,0 +1,24 @@
+{
+  "dossier_id": "dos-08625cc7",
+  "legislation": [],
+  "case_law": [],
+  "selected_ids": [],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "wat is de btw op tandpasta?"
+    },
+    {
+      "role": "assistant",
+      "content": "De btw op tandpasta in Nederland valt onder het lage tarief van 9%. Dit tarief geldt voor de meeste levensmiddelen en essentiële producten."
+    },
+    {
+      "role": "user",
+      "content": "gebruik bronnen"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik heb geen wijzigingen aangebracht aan het dossier."
+    }
+  ]
+}

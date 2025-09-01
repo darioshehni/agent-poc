@@ -1,0 +1,44 @@
+{
+  "dossier_id": "dos-7873bb16",
+  "legislation": [],
+  "case_law": [
+    {
+      "title": "ECLI:NL:HR:2020:123",
+      "content": "Geschil over btw-classificatie en tarieftoepassing. Het btw tarief op tandpasta is 0%"
+    },
+    {
+      "title": "ECLI:NL:RBAMS:2021:456",
+      "content": "Deelnemingsvrijstelling vereist een zakelijk motief."
+    }
+  ],
+  "selected_ids": [
+    "ECLI:NL:HR:2020:123",
+    "ECLI:NL:RBAMS:2021:456"
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "hi"
+    },
+    {
+      "role": "assistant",
+      "content": "Hallo! Hoe kan ik je helpen vandaag? Heb je vragen over belastingen of iets anders waar ik bij kan helpen?"
+    },
+    {
+      "role": "user",
+      "content": "wat is de btw opt andpasta"
+    },
+    {
+      "role": "assistant",
+      "content": "De btw op tandpasta in Nederland valt onder het algemene btw-tarief van 21%. Dit tarief geldt voor de meeste goederen en diensten, tenzij er een specifiek verlaagd tarief van toepassing is. Heb je nog andere vragen over btw of iets anders?"
+    },
+    {
+      "role": "user",
+      "content": "gebruik bronnen aub, in dit geval jurisprudentie"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende nieuwe bronnen:\n -ECLI:NL:HR:2020:123\n- ECLI:NL:RBAMS:2021:456Zijn deze bronnen correct voor uw vraag?\n"
+    }
+  ]
+}

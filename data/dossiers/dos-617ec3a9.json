@@ -1,0 +1,28 @@
+{
+  "dossier_id": "dos-617ec3a9",
+  "legislation": [],
+  "case_law": [
+    {
+      "title": "ECLI:NL:HR:2020:123",
+      "content": "Geschil over btw-classificatie en tarieftoepassing. Het btw tarief op tandpasta is 0%"
+    },
+    {
+      "title": "ECLI:NL:RBAMS:2021:456",
+      "content": "Deelnemingsvrijstelling vereist een zakelijk motief."
+    }
+  ],
+  "selected_ids": [
+    "ECLI:NL:HR:2020:123",
+    "ECLI:NL:RBAMS:2021:456"
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "wat is de btw op tanpasta, zoek jurisprudentie op"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik vond de volgende nieuwe bronnen:\n\n\n -ECLI:NL:HR:2020:123\n- ECLI:NL:RBAMS:2021:456Zijn deze bronnen correct voor uw vraag?\n"
+    }
+  ]
+}

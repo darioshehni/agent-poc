@@ -103,18 +103,10 @@ NIET‑GESELECTEERDE BRON TITELS (Gebruik in uw antwoord exact de titels zoals z
 {candidates}"""
 
 
-RETRIEVAL_TITLES_HEADER = "Ik vond de volgende bronnen:"
-RETRIEVAL_CONFIRMATION = "Zijn deze bronnen correct voor uw vraag?"
-REMOVAL_CONFIRMATION = "Ik heb de genoemde bronnen uit de selectie gehaald."
-
-
-def build_retrieval_message(titles: list[str]) -> str:
- """Render a single retrieval message from a list of titles."""
- lines = [RETRIEVAL_TITLES_HEADER]
- for i, title in enumerate(titles, 1):
-  lines.append(f"{i}. {title}")
- lines.append(RETRIEVAL_CONFIRMATION)
- return "\n".join(lines)
+RETRIEVAL_TITLES_HEADER = "Ik vond de volgende nieuwe bronnen:"
+SELECT_TITLES_HEADER = "Ik heb de genoemde bronnen weer aan de selectie toegevoegd."
+UNSELECT_TITLES_HEADER = "Ik heb de genoemde bronnen uit de selectie gehaald:"
+SELECTED_CONFIRMATION = "Zijn deze bronnen correct voor uw vraag?"
 
 
 def fill_prompt_template(template: str, **kwargs: Any) -> str:

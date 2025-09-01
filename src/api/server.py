@@ -39,7 +39,6 @@ async def websocket_chat(ws: WebSocket) -> None:
         payload = await ws.receive_json()
         message = (payload.get("message") or payload.get("query") or "").strip()
         dossier_id = (payload.get("dossier_id") or "").strip() or f"dos-{uuid4().hex[:8]}"
-
         if not message:
             await ws.send_json({"status": "error", "error": "message is required"})
             await ws.close()
@@ -47,7 +46,9 @@ async def websocket_chat(ws: WebSocket) -> None:
 
         # Create a fresh chatbot per connection; session manager loads the dossier if present
         assistant = TESS(dossier_id=dossier_id)
-        response_text = await assistant.process_message(message)
+        response_text = await assistant.process_message(user_input=message)
+        dossier_id = assistant.dossier_id  # in case the given id did not exist.
+
         await ws.send_json({"status": "success", "response": response_text, "dossier_id": dossier_id})
         await ws.close()
     except Exception as e:

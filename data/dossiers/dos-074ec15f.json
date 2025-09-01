@@ -1,0 +1,16 @@
+{
+  "dossier_id": "dos-074ec15f",
+  "legislation": [],
+  "case_law": [],
+  "selected_ids": [],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "hallo alles goed?"
+    },
+    {
+      "role": "assistant",
+      "content": "Hallo! Ja, met mij is alles goed. Hoe kan ik je helpen vandaag? Heb je vragen over belastingen of iets anders waar ik bij kan assisteren?"
+    }
+  ]
+}

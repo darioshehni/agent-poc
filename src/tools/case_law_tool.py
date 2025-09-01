@@ -8,7 +8,7 @@ The agent is responsible for presenting user-facing messages.
 from typing import Any
 import logging
 
-from src.config.models import CaseLaw, DossierPatch, ToolResult
+from src.config.models import CaseLaw, DossierPatch
 
 logger = logging.getLogger(__name__)
 
@@ -53,19 +53,18 @@ class CaseLawTool:
             "required": ["query"]
         }
     
-    async def execute(self, query: str, dossier=None, **_: Any) -> ToolResult:
+    async def execute(self, query: str, dossier=None, **_: Any) -> dict:
         """Dummy implementation: always return the sample case law as a patch."""
         logger.debug("Case law tool called")
         try:
             items = list(self._sample_case_law)
-            titles = [x.title for x in items if (x.title or '').strip()]
-
+            titles = [x.title for x in items]
             patch = DossierPatch(
                 add_case_law=items,
-                select_titles=[t for t in titles if t],
+                select_titles=titles,
             )
-
-            return ToolResult(success=True, data=None, message="", patch=patch)
+            return {"success": True, "data": None, "patch": patch}
         except Exception as e:
             logger.error(f"CaseLawTool failed: {e}", exc_info=True)
-            return ToolResult(success=False, data=None, error_message=str(e))
+            message = ""
+            return {"success": False, "data": None, "error_message": str(e)}

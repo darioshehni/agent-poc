@@ -1,0 +1,16 @@
+{
+  "dossier_id": "dos-5b12f996",
+  "legislation": [],
+  "case_law": [],
+  "selected_ids": [],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "met bronnen graag"
+    },
+    {
+      "role": "assistant",
+      "content": "Kunt u alstublieft uw belastingvraag specificeren? Dan kan ik relevante wetgeving en jurisprudentie voor u opzoeken."
+    }
+  ]
+}

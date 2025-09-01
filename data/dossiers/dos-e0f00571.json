@@ -1,0 +1,32 @@
+{
+  "dossier_id": "dos-e0f00571",
+  "legislation": [],
+  "case_law": [],
+  "selected_ids": [],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "hi"
+    },
+    {
+      "role": "assistant",
+      "content": "Hallo! Hoe kan ik je helpen vandaag? Heb je een vraag over belastingen of iets anders waar ik mee kan helpen?"
+    },
+    {
+      "role": "user",
+      "content": "welke taal spreek je?"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik spreek Nederlands. Hoe kan ik je verder helpen? Heb je een specifieke vraag of onderwerp waar je meer over wilt weten?"
+    },
+    {
+      "role": "user",
+      "content": "wat is de btw op tandpasta"
+    },
+    {
+      "role": "assistant",
+      "content": "De btw op tandpasta in Nederland valt onder het lage tarief van 9%. Heb je nog andere vragen over btw of iets anders?"
+    }
+  ]
+}

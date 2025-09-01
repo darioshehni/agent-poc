@@ -10,7 +10,7 @@ De agent verzorgt de user‑facing bevestiging.
 from typing import Any
 import logging
 
-from src.config.models import DocumentTitles, DossierPatch, Dossier, ToolResult
+from src.config.models import DocumentTitles, DossierPatch, Dossier
 from src.llm import LlmChat
 from src.config.prompts import RESTORE_PROMPT
 from src.config.config import OpenAIModels
@@ -48,15 +48,15 @@ class RestoreSourcesTool:
             "required": ["query"]
         }
 
-    async def execute(self, query: str, dossier: Dossier) -> ToolResult:
+    async def execute(self, query: str, dossier: Dossier) -> dict:
         try:
             query = (query or "").strip()
             if not query:
-                return ToolResult(success=False, data=None, message="Query cannot be empty")
+                return {"success": False, "data": None, "message": "Query cannot be empty"}
 
             candidates: list[str] = dossier.unselected_titles()
             if not candidates:
-                return ToolResult(success=False, data=None, message="No unselected sources available to restore")
+                return {"success": False, "data": None, "message": "No unselected sources available to restore"}
 
             candidates_formatted = "\n".join(candidates)
             prompt = RESTORE_PROMPT.format(query=query, candidates=candidates_formatted)
@@ -69,10 +69,10 @@ class RestoreSourcesTool:
 
             titles = list(document_titles.titles or [])
             if not titles:
-                return ToolResult(False, None, message="No titles selected for restoration")
+                return {"success": False, "data": None, "message": "No titles selected for restoration"}
 
             patch = DossierPatch(select_titles=titles)
-            return ToolResult(success=True, data=document_titles, message="", patch=patch)
+            return {"success": True, "data": document_titles, "patch": patch}
 
         except Exception as e:
             logger.error(f"restore_sources tool failed: {e}")

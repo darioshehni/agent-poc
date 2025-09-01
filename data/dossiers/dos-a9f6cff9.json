@@ -1,0 +1,16 @@
+{
+  "dossier_id": "dos-a9f6cff9",
+  "legislation": [],
+  "case_law": [],
+  "selected_ids": [],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "wat is de btw op tandpasta, gebruik bronnen"
+    },
+    {
+      "role": "assistant",
+      "content": "Ik heb geen wijzigingen aangebracht aan het dossier."
+    }
+  ]
+}

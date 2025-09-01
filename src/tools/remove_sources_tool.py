@@ -10,7 +10,7 @@ from typing import Any
 import logging
 
 
-from src.config.models import DocumentTitles, DossierPatch, Dossier, ToolResult
+from src.config.models import DocumentTitles, DossierPatch, Dossier
 from src.llm import LlmChat
 from src.config.prompts import REMOVE_PROMPT
 from src.config.config import OpenAIModels
@@ -54,14 +54,16 @@ class RemoveSourcesTool:
             "required": ["query"]
         }
 
-    async def execute(self, query: str, dossier: Dossier) -> ToolResult:
+    async def execute(self, query: str, dossier: Dossier) -> dict:
         try:
             if not query.strip():
-                return ToolResult(success=False, data=None, message="Query cannot be empty")
+                raise ValueError("Query cannot be empty")
 
             selected_titles: list[str] = dossier.selected_titles()
             if not selected_titles:
-                return ToolResult(success=False, data=None, message="No dossier sources available to remove")
+                return {"success": False,
+                        "data": None,
+                        "message": "No dossier sources available to remove"}
 
             selected_titles_formatted = "\n".join(selected_titles)
 
@@ -75,14 +77,16 @@ class RemoveSourcesTool:
 
             titles = list(document_titles.titles or [])
             if not titles:
-                return ToolResult(success=False, data=None, message="No titles selected for removal")
+                return {"success": False,
+                        "data": None,
+                        "message": "No titles selected for removal"}
 
             patch = DossierPatch(unselect_titles=titles)
 
-            return ToolResult(success=True,
-                              data=document_titles,
-                              message="",
-                              patch=patch)
+            return {"success": True,
+                    "data": document_titles,
+                    "message": "",
+                    "patch": patch}
 
         except Exception as e:
             logger.error(f"remove_sources tool failed: {e}")

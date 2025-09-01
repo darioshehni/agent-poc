@@ -18,7 +18,9 @@ import os
 import uuid
 import json
 import asyncio
-from typing import Any, Dict
+from typing import Any, Dict, List
+from pathlib import Path
+import time
 
 import streamlit as st
 
@@ -59,12 +61,114 @@ def init_state():
         st.session_state.current_dossier_id = f"dos-{uuid.uuid4().hex[:8]}"
     if "history" not in st.session_state:
         st.session_state.history = []  # list[dict(role, content)]
+    if "selected_titles" not in st.session_state:
+        st.session_state.selected_titles = []  # list[str]
 
 
 def reset_conversation(new_dossier: bool = True):
     if new_dossier:
         st.session_state.current_dossier_id = f"dos-{uuid.uuid4().hex[:8]}"
     st.session_state.history = []
+    st.session_state.selected_titles = []
+
+
+def _strip_number_prefix(s: str) -> str:
+    import re as _re
+    return _re.sub(r"^\s*\d+\.\s*", "", s).strip()
+
+
+def _extract_block(lines: List[str], header: str, stop_headers: List[str]) -> List[str]:
+    try:
+        idx = next(i for i, ln in enumerate(lines) if ln.strip().startswith(header))
+    except StopIteration:
+        return []
+    out: List[str] = []
+    for ln in lines[idx + 1 :]:
+        s = ln.strip()
+        if not s:
+            break
+        if any(s.startswith(h) for h in stop_headers):
+            break
+        out.append(_strip_number_prefix(s))
+    return [x for x in out if x]
+
+
+def update_selected_from_disk(dossier_id: str, retries: int = 5, delay_s: float = 0.1) -> None:
+    """Update selected_titles by reading data/dossiers/{dossier_id}.json.
+
+    Retries briefly because the server persists right after sending.
+    """
+    dossier_id = (dossier_id or "").strip()
+    if not dossier_id:
+        return
+    path = Path("data/dossiers") / f"{dossier_id}.json"
+    for _ in range(max(1, retries)):
+        try:
+            if path.exists():
+                data = json.loads(path.read_text(encoding="utf-8"))
+                sel = data.get("selected_ids") or []
+                if isinstance(sel, list):
+                    # Ensure simple string list
+                    st.session_state.selected_titles = [str(x) for x in sel if isinstance(x, (str, int, float))]
+                    return
+        except Exception:
+            pass
+        time.sleep(delay_s)
+
+
+def render_right_sidebar() -> None:
+    """Inject a fixed right-side panel that mimics a sidebar.
+
+    Streamlit only has a built-in left sidebar. This function injects a fixed
+    panel on the right via CSS so we can show the current selection.
+    """
+    titles = st.session_state.get("selected_titles", []) or []
+    items_html = "".join(f"<li>{t}</li>" for t in titles)
+    if not items_html:
+        items_html = "<li><em>(Nog geen selectie)</em></li>"
+
+    css = """
+    <style>
+      /* Right fixed sidebar */
+      #rightbar {
+        position: fixed;
+        /* Nudge below the Streamlit top header */
+        top: 3.25rem;
+        right: 0;
+        width: 360px;
+        height: calc(100vh - 3.25rem);
+        overflow: auto;
+        padding: 0.75rem 1rem 2rem 1rem;
+        /* Match Streamlit's sidebar greyish background exactly */
+        background: #f0f2f6 !important;
+        border-left: 1px solid rgba(49, 51, 63, 0.2);
+        z-index: 999;
+        box-shadow: -2px 0 6px rgba(0,0,0,0.05);
+      }
+      #rightbar, #rightbar * { color: inherit; }
+      #rightbar h3 { margin: 0.5rem 0 0.75rem; }
+      #rightbar ul { margin: 0; padding-left: 1.25rem; }
+      #rightbar li { margin: 0.25rem 0; }
+      /* Theme-aware text color */
+      @media (prefers-color-scheme: dark) {
+        #rightbar { background: #0e1117 !important; color: #ffffff; }
+      }
+      @media (prefers-color-scheme: light) {
+        #rightbar { background: #f0f2f6 !important; color: #31333f; }
+      }
+      @media (max-width: 1000px) {
+        div.block-container { padding-right: 1rem; }
+        #rightbar { display: none; }
+      }
+    </style>
+    """
+    html = f"""
+    <div id="rightbar">
+      <h3>Geselecteerde titels</h3>
+      <ul>{items_html}</ul>
+    </div>
+    """
+    st.markdown(css + html, unsafe_allow_html=True)
 
 
 def main():
@@ -106,7 +210,10 @@ def main():
         - Run deze UI: `streamlit run ui_streamlit.py`
         """)
 
-    # Show chat history
+    # Refresh selection from disk before rendering
+    update_selected_from_disk(st.session_state.current_dossier_id)
+
+    # Render chat in main area
     for msg in st.session_state.history:
         with st.chat_message("user" if msg["role"] == "user" else "assistant"):
             st.markdown(msg.get("content", ""))
@@ -134,11 +241,16 @@ def main():
                     st.session_state.current_dossier_id = returned_id
                 answer = resp.get("response", "")
                 st.session_state.history.append({"role": "assistant", "content": answer})
+                # Update selection panel by reading dossier snapshot from disk
+                update_selected_from_disk(st.session_state.current_dossier_id)
                 with st.chat_message("assistant"):
                     st.markdown(answer)
         except Exception as e:  # network or server failure
             with st.chat_message("assistant"):
                 st.error(f"Kon geen verbinding maken met de server: {e}")
+
+    # Inject right-side custom sidebar with current selection (after possible updates)
+    render_right_sidebar()
 
 
 if __name__ == "__main__":
